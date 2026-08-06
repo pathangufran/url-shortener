@@ -1,6 +1,6 @@
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.request import Request
 
@@ -9,6 +9,7 @@ from .serializers.response import UserResponseSerializer
 from .serializers.login import LoginSerializer
 from .serializers.token import TokenResponseSerializer
 from .services import AuthService
+from rest_framework_simplejwt.views import TokenRefreshView
 
 class RegisterAPIView(APIView):
 
@@ -46,3 +47,13 @@ class LoginAPIView(APIView):
         response = TokenResponseSerializer(tokens)
 
         return Response(response.data,status=status.HTTP_200_OK,)
+
+class ProfileAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request):
+
+        user = AuthService.get_profile(request.user)
+        serializer = UserResponseSerializer(user)
+        return Response(serializer.data,status=status.HTTP_200_OK)

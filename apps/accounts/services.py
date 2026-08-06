@@ -73,3 +73,8 @@ class AuthService:
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }
+
+    @staticmethod
+    def get_profile(user):
+
+        return user
