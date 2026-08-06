@@ -20,6 +20,9 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -144,10 +147,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "standard": {
-            "format": (
-                "%(asctime)s | %(levelname)s | "
-                "%(name)s | %(message)s"
-            )
+            "format": "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         },
     },
     "handlers": {
@@ -155,9 +155,14 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "standard",
         },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": LOG_DIR / "url_shortener.log",
+            "formatter": "standard",
+        },
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["console", "file"],
         "level": "INFO",
     },
 }
