@@ -4,8 +4,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
 
-from serializers.register import RegisterSerializer
-from serializers.response import UserResponseSerializer
+from .serializers.register import RegisterSerializer
+from .serializers.response import UserResponseSerializer
+from .serializers.login import LoginSerializer
+from .serializers.token import TokenResponseSerializer
 from .services import AuthService
 
 class RegisterAPIView(APIView):
@@ -22,3 +24,25 @@ class RegisterAPIView(APIView):
         response = UserResponseSerializer(user)
 
         return Response(response.data,status=status.HTTP_201_CREATED,)
+
+class LoginAPIView(APIView):
+
+    permission_classes = [AllowAny]
+
+    def post(self,request):
+
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        serializer_data = serializer.validated_data 
+
+        user = AuthService.authenticate_user(
+            email=serializer_data["email"],
+            password=serializer_data["password"],
+        )
+
+        tokens = AuthService.generate_tokens(user)
+
+        response = TokenResponseSerializer(tokens)
+
+        return Response(response.data,status=status.HTTP_200_OK,)
