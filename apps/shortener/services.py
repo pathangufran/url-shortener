@@ -6,6 +6,7 @@ from datetime import datetime
 from .models import URL
 from django.conf import settings
 from django.db import IntegrityError,transaction
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -84,3 +85,25 @@ class URLService:
 
         raise RuntimeError("Unable to generate a unique short code.")
 
+    def get_by_short_code(self,short_code:str) -> dict:
+        """
+        Retrieve an active URL by its short code.
+        """
+
+        url = (
+            URL.objects.select_related("user").
+            filter(short_code=short_code,is_active=True).first()
+        )
+        if url is None:
+            return None
+
+        if (url.expires_at and url.expires_at <= timezone.now()):
+            return "expired"
+
+        logger.info(
+            "URL redirected",
+            extra={"short_code": url.short_code,"url_id": str(url.id),},
+        )
+
+        return url
+            
