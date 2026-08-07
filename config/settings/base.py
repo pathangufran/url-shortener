@@ -188,3 +188,5 @@ SIMPLE_JWT = {
 
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+SHORT_CODE_LENGTH = int(os.getenv("SHORT_CODE_LENGTH"))
