@@ -8,6 +8,23 @@ class CreateURLSerializer(serializers.Serializer):
         allow_null=True,
     )
 
+class UpdateURLSerializer(serializers.Serializer):
+    long_url = serializers.URLField()
+    expires_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+    )
+    is_active = serializers.BooleanField(required=False,)
+
+    def validate(self,attrs):
+        if not attrs:
+            raise serializers.ValidationError(
+                "At least one field is required for update."
+            )
+
+        return attrs
+    
+
 class URLResponseSerializer(serializers.ModelSerializer):
     short_url = serializers.SerializerMethodField()
 

@@ -6,7 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from .services import URLService 
 from .pagination import URLPagination
 from .filters import URLFilter
-from .serializers import CreateURLSerializer,URLResponseSerializer
+from .serializers import (
+    CreateURLSerializer,
+    URLResponseSerializer,
+    UpdateURLSerializer
+)
 from django.http import Http404,HttpResponseGone
 from django.shortcuts import redirect
 from django.views import View
@@ -113,6 +117,37 @@ class URLRetrieveAPIView(APIView):
         serializer = URLResponseSerializer(url,context={"request": request,},)
 
         return Response(serializer.data,status=status.HTTP_200_OK,)
+
+class URLUpdateAPIView(APIView):
+    """
+    Update a URL belonging to the authenticated user.
+    """
+
+    permission_classes = [IsAuthenticated]
+    service = URLService()
+
+    def patch(self,request:Request,url_id:str) -> Response:
+
+        serializer = UpdateURLSerializer(
+            data=request.data,partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        url = self.service.update_url(
+            user=request.user,
+            url_id=url_id,
+            validated_data=serializer.validated_data
+        )
+        if url is None:
+            raise Http404(
+                "URL not found."
+            )
+        response_serializer = URLResponseSerializer(
+            url,
+            context={"request": request,},
+        ) 
+        return Response(
+            response_serializer.data,status=status.HTTP_200_OK,
+        )
 
 
 class RedirectAPIView(View):

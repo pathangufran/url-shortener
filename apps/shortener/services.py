@@ -157,8 +157,45 @@ class URLService:
 
         return url
 
-         
+    @transaction.atomic
+    def update_url(self,*,user:User,url_id:str,validated_data:dict) -> dict:
+        """
+        Update a URL belonging to the authenticated user.
+        """
+        try:
+            url = (
+                URL.objects.select_for_update().
+                get(user=user,id=url_id,)
+            )
+
+        except URL.DoesNotExist:
+            logger.warning(
+                "URL update failed: URL not found or unauthorized.",
+                extra={
+                    "user_id": str(user.id),
+                    "url_id": str(url_id),
+                },
+            )
+            return None
         
+        for field,value in validated_data.items():
+            setattr(url, field, value)
+
+        url.save(update_fields=[*validated_data.keys(),"updated_at",])
+
+        logger.info(
+            "URL updated successfully.",
+            extra={
+                "user_id": str(user.id),
+                "url_id": str(url.id),
+                "short_code": url.short_code,
+                "updated_fields": list(
+                    validated_data.keys()
+                ),
+            },
+        )
+
+        return url
         
 
         
