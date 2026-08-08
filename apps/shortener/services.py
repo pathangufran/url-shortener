@@ -197,8 +197,52 @@ class URLService:
 
         return url
         
+    @transaction.atomic
+    def delete_url(self,*,user:User,url_id:str) -> dict:
+        """
+        Soft delete a URL belonging to the authenticated user.
+        """
 
-        
+        try:
+            url = (
+                URL.objects.select_for_update().
+                get(id=url_id,user=user)
+            )
+
+        except URL.DoesNotExist:
+            logger.warning(
+                "URL deletion failed: URL not found or unauthorized.",
+                extra={
+                    "user_id": str(user.id),
+                    "url_id": str(url_id),
+                },
+            )
+            return None
+
+        if not url.is_active:
+            logger.info(
+                "URL deletion requested for an already inactive URL.",
+                extra={
+                    "user_id": str(user.id),
+                    "url_id": str(url.id),
+                    "short_code": url.short_code,
+                },
+            )
+            return url
+
+        url.is_active = False
+        url.save(update_fields=["is_active","updated_at",])
+
+        logger.info(
+            "URL soft deleted successfully.",
+            extra={
+                "user_id": str(user.id),
+                "url_id": str(url.id),
+                "short_code": url.short_code,
+            },
+        )
+        return url
+
 
         
         

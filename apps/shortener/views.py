@@ -149,6 +149,23 @@ class URLUpdateAPIView(APIView):
             response_serializer.data,status=status.HTTP_200_OK,
         )
 
+class URLDeleteAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    service = URLService()
+
+    def delete(self,request:Request,url_id:str) -> Response:
+
+        url = self.service.delete_url(
+            user=request.user,
+            url_id=url_id
+        )
+        if url is None:
+            raise Http404("URL not found.")
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class RedirectAPIView(View):
 
