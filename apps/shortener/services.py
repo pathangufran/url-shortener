@@ -7,6 +7,7 @@ from .models import URL
 from django.conf import settings
 from django.db import IntegrityError,transaction
 from django.utils import timezone
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +79,7 @@ class URLService:
 
                 logger.warning(
                     "Short code collision detected. Retrying...",
-                    extra={
-                        "attempt": attempt + 1,
-                    },
+                    extra={"attempt": attempt + 1,},
                 )
 
         raise RuntimeError("Unable to generate a unique short code.")
@@ -106,4 +105,27 @@ class URLService:
         )
 
         return url
-            
+
+    def get_url_list(self,user:User) -> list[dict]:
+        """
+        Base queryset for authenticated user's URLs.
+
+        Filtering, searching, ordering and pagination
+        are applied inside the view.
+        """
+        queryset = (
+            URL.objects.select_related("user").
+            filter(user=user)
+        )
+        logger.info(
+            "Fetching user URLs.",
+            extra={"user_id": str(user.id),},
+        )
+        return queryset
+        
+        
+
+        
+
+        
+        

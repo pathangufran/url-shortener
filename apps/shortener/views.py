@@ -1,19 +1,60 @@
-from rest_framework import status
+from rest_framework import status,filters
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .services import URLService 
+from .pagination import URLPagination
+from .filters import URLFilter
 from .serializers import CreateURLSerializer,URLResponseSerializer
 from django.http import Http404,HttpResponseGone
 from django.shortcuts import redirect
 from django.views import View
+from django_filters.rest_framework import DjangoFilterBackend
 
 class CreateURLAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     service = URLService()
+
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    filterset_class = URLFilter
+
+    search_fields = ["long_url","short_code",]
+    ordering_fields = ["created_at","expires_at",]
+    ordering = ["-created_at",]
+
+    pagination_class = URLPagination
+
+    def filter_queryset(self,queryset:dict) -> list[dict]:
+        """
+        Apply filtering, searching and ordering manually.
+        """
+
+        for backend in self.filter_backends:
+            queryset = backend().filter_queryset(
+                self.request,queryset,self,
+            )
+
+            return queryset
+
+    def get(self,request:Request) -> Response:
+
+        queryset = self.service.get_url_list(request.user)
+        queryset = self.filter_queryset(queryset) 
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset,request)
+        serializer = URLResponseSerializer(
+            page,many=True,context={"request": request,},
+        )
+
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self,request:Request) -> Response:
 
