@@ -15,6 +15,7 @@ from django.http import Http404,HttpResponseGone
 from django.shortcuts import redirect
 from django.views import View
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.analytics.services import AnalyticsService
 
 class CreateURLAPIView(APIView):
 
@@ -171,6 +172,19 @@ class RedirectAPIView(View):
 
     service = URLService()
 
+    @staticmethod
+    def _get_client_ip(request):
+        """
+        Extract the client IP address from the request.
+        """
+
+        forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+
+        return request.META.get("REMOTE_ADDR")
+
     def get(self,request:Request,short_code:str) -> Response:
 
         url = self.service.get_by_short_code(short_code)
@@ -180,5 +194,12 @@ class RedirectAPIView(View):
         
         if url == "expired":
             return HttpResponseGone("This URL has expired.")
+
+        AnalyticsService.record_click(
+            url_id=url.id,
+            ip_address=self._get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT"),
+            referrer=request.META.get("HTTP_REFERER"),
+        )
 
         return redirect(url.long_url,permanent=False,)
