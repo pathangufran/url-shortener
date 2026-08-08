@@ -115,13 +115,49 @@ class URLService:
         """
         queryset = (
             URL.objects.select_related("user").
-            filter(user=user)
+            filter(user=user,)
         )
         logger.info(
             "Fetching user URLs.",
             extra={"user_id": str(user.id),},
         )
         return queryset
+
+    def get_users_url(self,*,user:User,url_id:str) -> dict:
+        """
+        Retrieve a URL belonging to the authenticated user.
+
+        Ownership is enforced at the database-query level.
+        """
+
+        try:
+            url = (
+                URL.objects.select_related("user").
+                get(id=url_id,user=user,)
+            )
+
+        except URL.DoesNotExist:
+            logger.warning(
+                "URL not found or user does not have access.",
+                extra={
+                    "user_id": str(user.id),
+                    "url_id": str(url_id),
+                },
+            )
+            return None
+
+        logger.info(
+            "URL retrieved successfully.",
+            extra={
+                "user_id": str(user.id),
+                "url_id": str(url.id),
+                "short_code": url.short_code,
+            },
+        )
+
+        return url
+
+         
         
         
 

@@ -18,44 +18,6 @@ class CreateURLAPIView(APIView):
 
     service = URLService()
 
-    filter_backends = [
-        DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
-
-    filterset_class = URLFilter
-
-    search_fields = ["long_url","short_code",]
-    ordering_fields = ["created_at","expires_at",]
-    ordering = ["-created_at",]
-
-    pagination_class = URLPagination
-
-    def filter_queryset(self,queryset:dict) -> list[dict]:
-        """
-        Apply filtering, searching and ordering manually.
-        """
-
-        for backend in self.filter_backends:
-            queryset = backend().filter_queryset(
-                self.request,queryset,self,
-            )
-
-            return queryset
-
-    def get(self,request:Request) -> Response:
-
-        queryset = self.service.get_url_list(request.user)
-        queryset = self.filter_queryset(queryset) 
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(queryset,request)
-        serializer = URLResponseSerializer(
-            page,many=True,context={"request": request,},
-        )
-
-        return paginator.get_paginated_response(serializer.data)
-
     def post(self,request:Request) -> Response:
 
         serializer = CreateURLSerializer(data=request.data)
@@ -66,6 +28,91 @@ class CreateURLAPIView(APIView):
         )
         response = URLResponseSerializer(url,context={"request": request,},)
         return Response(response.data,status=status.HTTP_201_CREATED)
+
+
+class URLListAPIView(APIView):
+    """
+    List URLs belonging to the authenticated user.
+
+    Supports:
+    - Pagination
+    - Search
+    - Filtering
+    - Ordering
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    service = URLService()
+
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    filterset_class = URLFilter
+
+    search_fields = ["long_url","short_code",]
+
+    ordering_fields = ["created_at","expires_at",]
+
+    ordering = ["-created_at",]
+
+    pagination_class = URLPagination
+
+    def filter_queryset(self, queryset):
+        """
+        Apply filtering, searching and ordering.
+        """
+
+        for backend in self.filter_backends:
+            queryset = backend().filter_queryset(
+                self.request,
+                queryset,
+                self,
+            )
+
+        return queryset
+
+    def get(self, request):
+
+        queryset = self.service.list_urls(request.user)
+        queryset = self.filter_queryset(queryset)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset,request,)
+
+        serializer = URLResponseSerializer(
+            page,many=True,
+            context={"request": request,},
+        )
+
+        return paginator.get_paginated_response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+class URLRetrieveAPIView(APIView):
+    """
+    Retrieve a URL belonging to the authenticated user.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    service = URLService()
+
+    def get(self,request:Request,url_id:str) -> Response:
+
+        url = self.service.get_users_url(
+            user=request.user,
+            url_id=url_id
+        )
+        if url is None:
+            raise Http404("URL not found.")
+        
+        serializer = URLResponseSerializer(url,context={"request": request,},)
+
+        return Response(serializer.data,status=status.HTTP_200_OK,)
 
 
 class RedirectAPIView(View):
