@@ -23,4 +23,5 @@ urlpatterns = [
     path("api/v1/auth/",include("apps.accounts.urls"),),
     path("api/v1/urls/",include("apps.shortener.urls"),),
     path("<str:short_code>/",RedirectAPIView.as_view(),name="redirect",),
+    path("api/v1/",include("apps.analytics.urls"),),
 ]
