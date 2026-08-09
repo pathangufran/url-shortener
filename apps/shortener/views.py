@@ -175,7 +175,11 @@ class RedirectAPIView(View):
     @staticmethod
     def _get_client_ip(request):
         """
-        Extract the client IP address from the request.
+        Extract the client IP address.
+
+        X-Forwarded-For is considered because the application
+        will eventually run behind Nginx. Trusted proxy handling
+        will be configured during production deployment.
         """
 
         forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
