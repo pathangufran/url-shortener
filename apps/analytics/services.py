@@ -4,6 +4,8 @@ from .models import ClickEvent
 from django.conf import settings
 from django.db.models import Count
 from apps.shortener.models import URL
+from datetime import datetime,time,timedelta
+from django.utils import timezone
 
 User = settings.AUTH_USER_MODEL
 
@@ -66,7 +68,8 @@ class AnalyticsService:
             return None
 
     @staticmethod
-    def get_url_analytics(*,user:User,url_id:str) -> list[dict]:
+    def get_url_analytics(*,user:User,url_id:str,
+        start_date=None,end_date=None) -> list[dict]:
         """
         Generate analytics for a URL owned by the
         authenticated user.
@@ -87,6 +90,29 @@ class AnalyticsService:
             return None
 
         click_events = ClickEvent.objects.filter(url=url)
+        if start_date:
+            start_datetime = timezone.make_aware(
+                datetime.combine(
+                    start_date,
+                    time.min,
+                )
+            )
+
+            click_events = click_events.filter(
+                clicked_at__gte=start_datetime
+            )
+
+        if end_date:
+            end_datetime = timezone.make_aware(
+                datetime.combine(
+                    end_date + timedelta(days=1),
+                    time.min,
+                )
+            )
+
+            click_events = click_events.filter(
+                clicked_at__lt=end_datetime
+            )
         total_clicks = click_events.count()
 
         unique_visitors = (
@@ -179,6 +205,16 @@ class AnalyticsService:
             extra={
                 "user_id": str(user.id),
                 "url_id": str(url.id),
+                "start_date": (
+                    str(start_date)
+                    if start_date
+                    else None
+                ),
+                "end_date": (
+                    str(end_date)
+                    if end_date
+                    else None
+                ),
                 "total_clicks": total_clicks,
                 "unique_visitors": unique_visitors,
             },
