@@ -71,3 +71,44 @@ class AnalyticsFilterSerializer(serializers.Serializer):
                 )
 
         return attrs
+
+class ClickEventSerializer(serializers.Serializer):
+    """
+    Serializer for individual click events.
+    """
+
+    id = serializers.UUIDField()
+    ip_address = serializers.IPAddressField(allow_null=True,)
+    country = serializers.CharField(allow_null=True,)
+    browser = serializers.CharField(allow_null=True,)
+    device = serializers.CharField(allow_null=True,)
+    referrer = serializers.CharField(allow_null=True,)
+    clicked_at = serializers.DateTimeField()
+
+class ClickEventFilterSerializer(serializers.Serializer):
+    """
+    Validate filters for click event listing.
+    """
+
+    start_date = serializers.DateField(required=False,)
+    end_date = serializers.DateField(required=False,)
+    browser = serializers.CharField(required=False,)
+    device = serializers.CharField(required=False,)
+    country = serializers.CharField(required=False,)
+
+    def validate(self, attrs):
+        start_date = attrs.get("start_date")
+        end_date = attrs.get("end_date")
+
+        if start_date and end_date:
+            if start_date > end_date:
+                raise serializers.ValidationError(
+                    {
+                        "date_range": (
+                            "start_date must be before "
+                            "or equal to end_date."
+                        )
+                    }
+                )
+
+        return attrs

@@ -221,3 +221,127 @@ class AnalyticsService:
         )
 
         return analytics
+
+    @staticmethod
+    def get_click_events(
+        *,
+        user:User,
+        url_id:str,
+        start_date=None,
+        end_date=None,
+        browser=None,
+        device=None,
+        country=None,
+        ordering="-clicked_at",
+    ) -> list[dict]:
+        """
+        Return click events for a URL owned by the
+        authenticated user.
+
+        Filtering and ordering are performed by PostgreSQL.
+        """
+
+        try:
+            url = (
+                URL.objects.get(id=url_id,user=user)
+            )
+
+        except URL.DoesNotExist:
+            logger.warning(
+                "Click events requested for missing "
+                "or unauthorized URL.",
+                extra={
+                    "user_id": str(user.id),
+                    "url_id": str(url_id),
+                },
+            )
+            return None
+
+        queryset = (
+            ClickEvent.objects
+            .filter(url=url)
+            .only(
+                "id",
+                "ip_address",
+                "country",
+                "browser",
+                "device",
+                "referrer",
+                "clicked_at",
+            )
+        )
+        if start_date:
+            start_datetime = timezone.make_aware(
+                datetime.combine(
+                    start_date,
+                    time.min,
+                )
+            )
+
+            queryset = queryset.filter(
+                clicked_at__gte=start_datetime
+            )
+        if end_date:
+            end_datetime = timezone.make_aware(
+                datetime.combine(
+                    end_date + timedelta(days=1),
+                    time.min,
+                )
+            )
+
+            queryset = queryset.filter(
+                clicked_at__lt=end_datetime
+            )
+
+        if browser:
+            queryset = queryset.filter(
+                browser__iexact=browser
+            )
+
+        if device:
+            queryset = queryset.filter(
+                device__iexact=device
+            )
+
+        if country:
+            queryset = queryset.filter(
+                country__iexact=country
+            )
+
+        allowed_ordering = {
+            "clicked_at",
+            "-clicked_at",
+            "browser",
+            "-browser",
+            "device",
+            "-device",
+        }
+
+        if ordering not in allowed_ordering:
+            ordering = "-clicked_at"
+
+        queryset = queryset.order_by(ordering)
+
+        logger.info(
+            "Click events fetched successfully.",
+            extra={
+                "user_id": str(user.id),
+                "url_id": str(url.id),
+                "start_date": (
+                    str(start_date)
+                    if start_date
+                    else None
+                ),
+                "end_date": (
+                    str(end_date)
+                    if end_date
+                    else None
+                ),
+                "browser": browser,
+                "device": device,
+                "country": country,
+                "ordering": ordering,
+            },
+        )
+
+        return queryset
