@@ -212,3 +212,7 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
 CELERY_TASK_TRACK_STARTED = True
+
+REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL",default="redis://redis:6379/1",)
+
+URL_CACHE_TTL = int(os.getenv("URL_CACHE_TTL",default=3600))

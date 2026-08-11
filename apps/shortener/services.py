@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import IntegrityError,transaction
 from django.utils import timezone
 from django.db.models import Q
+from .redis_client import RedisCache
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ class URLService:
     """
     Handles business logic related to URL shortening.
     """
+
+    def __init__(self):
+        self.cache = RedisCache()
 
     def generate_short_code(self) -> str:
         """
@@ -82,29 +86,88 @@ class URLService:
                     extra={"attempt": attempt + 1,},
                 )
 
+        logger.error(
+            "Unable to generate a unique short code.",
+            extra={
+                "user_id": str(user.id),
+                "max_attempts": max_attempts,
+            },
+        )
+
         raise RuntimeError("Unable to generate a unique short code.")
 
     def get_by_short_code(self,short_code:str) -> dict:
         """
-        Retrieve an active URL by its short code.
+        Retrieve an active URL.
+
+        Redis is checked first.
+        PostgreSQL is the source of truth.
         """
+
+        cached_url = self.cache.get_url(short_code)
+        if cached_url:
+            logger.info(
+                "URL cache hit.",
+                extra={"short_code": short_code,},
+            )
+            return cached_url
+        
+        logger.info(
+            "URL cache miss.",
+            extra={"short_code": short_code,},
+        )
 
         url = (
             URL.objects.select_related("user").
-            filter(short_code=short_code,is_active=True).first()
+            filter(
+                short_code=short_code,
+                is_active=True
+            )
+            .first()
         )
         if url is None:
             return None
 
-        if (url.expires_at and url.expires_at <= timezone.now()):
+        if (
+            url.expires_at 
+            and url.expires_at <= timezone.now()
+        ):
             return "expired"
 
-        logger.info(
-            "URL redirected",
-            extra={"short_code": url.short_code,"url_id": str(url.id),},
-        )
+        cache_data = {
+            "id": str(url.id),
+            "long_url": url.long_url,
+            "short_code": url.short_code,
+            "expires_at": (
+                url.expires_at.isoformat()
+                if url.expires_at
+                else None
+            ),
+        }
 
-        return url
+        ttl = self._calculate_cache_ttl(url.expires_at)
+        if ttl > 0:
+            self.cache.set_url(
+                short_code=short_code,
+                data=cache_data,
+                ttl=ttl,
+            )
+        return cache_data
+
+    def _calculate_cache_ttl(self,expires_at=None,) -> int:
+
+        ttl = settings.URL_CACHE_TTL
+        if expires_at:
+            remaining_seconds = int(
+                (expires_at- timezone.now()).total_seconds()
+            )
+
+            if remaining_seconds <= 0:
+                return 0
+
+            ttl = min(ttl,remaining_seconds,)
+
+        return ttl
 
     def get_url_list(self,user:User) -> list[dict]:
         """
@@ -183,6 +246,8 @@ class URLService:
 
         url.save(update_fields=[*validated_data.keys(),"updated_at",])
 
+        self.cache.delete_url(url.short_code)
+
         logger.info(
             "URL updated successfully.",
             extra={
@@ -232,6 +297,8 @@ class URLService:
 
         url.is_active = False
         url.save(update_fields=["is_active","updated_at",])
+
+        self.cache.delete_url(url.short_code)
 
         logger.info(
             "URL soft deleted successfully.",

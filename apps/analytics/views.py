@@ -84,25 +84,19 @@ class URLClickEventsAPIView(APIView):
     def get(self,request:Request,url_id:str) -> Response:
         filter_serializer = ClickEventFilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
+
         queryset = self.service.get_click_events(
             user=request.user,
             url_id=url_id,
-            ordering=request.query_params.get(
-                "ordering",
-                "-clicked_at",
-            ),
+            ordering=request.query_params.get("ordering","-clicked_at",),
             **filter_serializer.validated_data,
         )
         if queryset is None:
             raise Http404("URL not found.")
-        page = self._paginate_queryset(
-            queryset,
-            request,
-        )
-        serializer = ClickEventSerializer(
-            page["results"],
-            many=True,
-        )
+        
+        page = self._paginate_queryset(queryset,request,)
+        serializer = ClickEventSerializer(page["results"],many=True,)
+
         response_data = {
             "count": page["count"],
             "next": page["next"],
@@ -128,19 +122,13 @@ class URLClickEventsAPIView(APIView):
         """
 
         try:
-            page = int(
-                request.query_params.get(
-                    "page",
-                    1,
-                )
-            )
+            page = int(request.query_params.get("page",1,))
 
         except (TypeError, ValueError):
             page = 1
 
         try:
-            page_size = int(
-                request.query_params.get(
+            page_size = int(request.query_params.get(
                     "page_size",
                     self.page_size,
                 )
@@ -150,32 +138,17 @@ class URLClickEventsAPIView(APIView):
             page_size = self.page_size
 
         page = max(page, 1)
-        page_size = min(
-            max(page_size, 1),
-            self.max_page_size,
-        )
+        page_size = min(max(page_size, 1),self.max_page_size,)
 
-        offset = (
-            page - 1
-        ) * page_size
+        offset = (page - 1) * page_size
 
         total_count = queryset.count()
 
-        results = queryset[
-            offset:offset + page_size
-        ]
+        results = queryset[offset:offset + page_size]
 
-        next_page = (
-            page + 1
-            if offset + page_size < total_count
-            else None
-        )
+        next_page = (page + 1 if offset + page_size < total_count else None)
 
-        previous_page = (
-            page - 1
-            if page > 1
-            else None
-        )
+        previous_page = (page - 1 if page > 1 else None)
 
         return {
             "count": total_count,
