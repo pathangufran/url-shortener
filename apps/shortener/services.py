@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db import IntegrityError,transaction
 from django.utils import timezone
 from django.db.models import Q
-from .redis_client import RedisCache
+from .utils.redis_client import RedisCache
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +118,7 @@ class URLService:
         )
 
         url = (
-            URL.objects.select_related("user").
-            filter(
+            URL.objects.filter(
                 short_code=short_code,
                 is_active=True
             )

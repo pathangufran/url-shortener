@@ -16,10 +16,12 @@ from django.shortcuts import redirect
 from django.views import View
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.analytics.services import AnalyticsService
+from .utils.throttling import URLCreationRateThrottle,RedirectRateThrottle
 
 class CreateURLAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [URLCreationRateThrottle]
 
     service = URLService()
 
@@ -169,6 +171,8 @@ class URLDeleteAPIView(APIView):
 
 
 class RedirectAPIView(View):
+
+    throttle_classes = [URLCreationRateThrottle]
 
     service = URLService()
 

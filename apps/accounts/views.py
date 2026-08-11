@@ -1,19 +1,20 @@
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny,IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny,IsAuthenticated
 
-from .serializers.register import RegisterSerializer
-from .serializers.response import UserResponseSerializer
-from .serializers.login import LoginSerializer
-from .serializers.token import TokenResponseSerializer
 from .services import AuthService
-from rest_framework_simplejwt.views import TokenRefreshView
+from .serializers.login import LoginSerializer
+from .serializers.register import RegisterSerializer
+from .serializers.token import TokenResponseSerializer
+from .serializers.response import UserResponseSerializer
+from apps.shortener.utils.throttling import AuthenticationRateThrottle
 
 class RegisterAPIView(APIView):
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthenticationRateThrottle]
 
     def post(self,request:Request) -> Response:
 
@@ -29,6 +30,7 @@ class RegisterAPIView(APIView):
 class LoginAPIView(APIView):
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthenticationRateThrottle]
 
     def post(self,request):
 
@@ -51,6 +53,7 @@ class LoginAPIView(APIView):
 class ProfileAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AuthenticationRateThrottle]
 
     def get(self,request):
 

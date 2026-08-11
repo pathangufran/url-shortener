@@ -12,6 +12,7 @@ from .serializers import (
     ClickEventFilterSerializer
 )
 from .services import AnalyticsService
+from apps.shortener.utils.throttling import AnalyticsRateThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class URLAnalyticsAPIView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AnalyticsRateThrottle]
 
     service = AnalyticsService()
 
@@ -75,6 +77,7 @@ class URLClickEventsAPIView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AnalyticsRateThrottle]
 
     service = AnalyticsService()
 
