@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from .models import URL
 
@@ -7,6 +8,14 @@ class CreateURLSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+
+    def validate_expires_at(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError(
+                "Expiration time must be in the future."
+            )
+
+        return value
 
 class UpdateURLSerializer(serializers.Serializer):
     long_url = serializers.URLField()

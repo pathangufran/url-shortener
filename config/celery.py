@@ -14,3 +14,12 @@ app.config_from_object(
 )
 
 app.autodiscover_tasks()
+
+app.conf.beat_schedule.update(
+    {
+        "deactivate-expired-urls": {
+            "task": "apps.shortener.tasks.deactivate_expired_urls",
+            "schedule": 60.0,
+        },
+    }
+)
