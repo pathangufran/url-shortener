@@ -53,12 +53,45 @@ class URLService:
         user:User,
         long_url:str,
         expires_at: Optional[datetime] = None,
+        custom_alias=None,
         ) -> str:
         """
-        Create a shortened URL.
+        Create a shortened URL using either a custom alias
+        or a generated short code.
         """
 
         max_attempts = 5
+        if custom_alias:
+            try:
+                URL.objects.create(
+                    user=user,
+                    long_url=long_url,
+                    short_code=custom_alias,
+                    expires_at=expires_at,
+                )
+
+            except IntegrityError:
+                logger.warning(
+                    "Custom alias creation failed due to "
+                    "duplicate alias.",
+                    extra={
+                        "user_id": str(user.id),
+                        "custom_alias": custom_alias,
+                    },
+                )
+
+                raise ValueError("This custom alias is already in use.")
+
+            logger.info(
+                "Short URL created with custom alias.",
+                extra={
+                    "user_id": str(user.id),
+                    "url_id": str(url.id),
+                    "short_code": url.short_code,
+                },
+            )
+
+            return url
 
         for attempt in range(max_attempts):
             try:
