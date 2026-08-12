@@ -31,7 +31,10 @@ class CreateURLAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         url = self.service.create_short_url(
             user=request.user,
-            **serializer.validated_data,
+            user=request.user,
+            long_url=serializer.validated_data["long_url"],
+            expires_at=serializer.validated_data.get("expires_at"),
+            custom_alias=serializer.validated_data.get("custom_alias"),
         )
         response = URLResponseSerializer(url,context={"request": request,},)
         return Response(response.data,status=status.HTTP_201_CREATED)
