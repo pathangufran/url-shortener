@@ -4,7 +4,8 @@ from .views import (
     URLListAPIView,
     URLRetrieveAPIView,
     URLUpdateAPIView,
-    URLDeleteAPIView
+    URLDeleteAPIView,
+    URLQRCodeAPIView
 )
 
 app_name = "shortener"
@@ -15,4 +16,5 @@ urlpatterns = [
     path("<uuid:url_id>/",URLRetrieveAPIView.as_view(),name="url-retrieve",),
     path("<uuid:url_id>/update/",URLUpdateAPIView.as_view(),name="url-update",),
     path("<uuid:url_id>/delete/",URLDeleteAPIView.as_view(),name="url-delete",),
+    path("urls/<uuid:url_id>/qr-code/",URLQRCodeAPIView.as_view(),name="url-qr-code",),
 ]

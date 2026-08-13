@@ -17,6 +17,9 @@ from django.views import View
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.analytics.services import AnalyticsService
 from .utils.throttling import URLCreationRateThrottle,RedirectRateThrottle
+from django.http import Http404
+from django.http import FileResponse
+from .utils.qr import generate_qr_code
 
 class CreateURLAPIView(APIView):
 
@@ -214,3 +217,34 @@ class RedirectAPIView(View):
         )
 
         return redirect(url.long_url,permanent=False,)
+
+class URLQRCodeAPIView(APIView):
+    """
+    Generate a QR code for a URL owned by
+    the authenticated user.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    service = URLService()
+
+    def get(self,request:Request,url_id:str) -> Response:
+
+        url = self.service.get_users_url(
+            user=request.user,
+            url_id=url_id
+        )
+        if url is None:
+            raise Http404("URL not found.")
+
+        short_url = request.build_absolute_uri(f"/{url.short_code}/")
+
+        qr_code = generate_qr_code(short_url)
+
+        return FileResponse(
+            qr_code,
+            content_type="image/png",
+            filename=f"{url.short_code}.png",
+        )
+
+        
