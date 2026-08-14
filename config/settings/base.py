@@ -47,6 +47,7 @@ LOCAL_APPS = [
 
 THIRD_PARTY_APPS = [
     "rest_framework",
+    "drf_spectacular",
 ]
 
 DJANGO_APPS = [
@@ -177,6 +178,12 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_SCHEMA_CLASS": (
+        "drf_spectacular.openapi.AutoSchema"
+    ),
 }
 
 SIMPLE_JWT = {
@@ -216,3 +223,28 @@ CELERY_TASK_TRACK_STARTED = True
 REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL",default="redis://redis:6379/1",)
 
 URL_CACHE_TTL = int(os.getenv("URL_CACHE_TTL",default=3600))
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "URL Shortener API",
+    "DESCRIPTION": (
+        "Production-style URL Shortener API "
+        "with authentication, analytics, Redis caching, "
+        "Celery background processing, and rate limiting."
+    ),
+    "VERSION": "1.0.0",
+
+    "SERVE_INCLUDE_SCHEMA": False,
+
+    "CONTACT": {
+        "name": "Gufran Pathan",
+    },
+
+    "LICENSE": {
+        "name": "MIT",
+    },
+    "SECURITY": [
+        {
+            "bearerAuth": [],
+        }
+    ],
+}

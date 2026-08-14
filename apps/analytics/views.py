@@ -13,9 +13,33 @@ from .serializers import (
 )
 from .services import AnalyticsService
 from apps.shortener.utils.throttling import AnalyticsRateThrottle
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema
+)
 
 logger = logging.getLogger(__name__)
 
+@extend_schema(
+    summary="Get URL analytics",
+    description=(
+        "Return aggregated click analytics for a URL. "
+        "Optional start_date and end_date filters can "
+        "be used to restrict the reporting period."
+    ),
+    responses={
+        200: URLAnalyticsResponseSerializer,
+        404: OpenApiResponse(
+            description="URL not found"
+        ),
+        429: OpenApiResponse(
+            description="Rate limit exceeded"
+        ),
+    },
+    tags=["Analytics"],
+)
 class URLAnalyticsAPIView(APIView):
     """
     Return analytics for a URL owned by the
@@ -62,6 +86,66 @@ class URLAnalyticsAPIView(APIView):
 
         return Response(serializer.data,status=status.HTTP_200_OK,)
 
+
+@extend_schema(
+    summary="List URL click events",
+    description=(
+        "Return paginated click events for a URL "
+        "owned by the authenticated user."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="start_date",
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="end_date",
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="browser",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="device",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="country",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="ordering",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="page",
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+        ),
+        OpenApiParameter(
+            name="page_size",
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+        ),
+    ],
+    responses={
+        200: ClickEventSerializer(many=True),
+        404: OpenApiResponse(
+            description="URL not found"
+        ),
+        429: OpenApiResponse(
+            description="Rate limit exceeded"
+        ),
+    },
+    tags=["Analytics"],
+)
 class URLClickEventsAPIView(APIView):
     """
     Return raw click events for a URL owned by

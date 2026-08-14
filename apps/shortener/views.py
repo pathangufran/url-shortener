@@ -20,7 +20,29 @@ from .utils.throttling import URLCreationRateThrottle,RedirectRateThrottle
 from django.http import Http404
 from django.http import FileResponse
 from .utils.qr import generate_qr_code
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+)
 
+@extend_schema(
+    summary="Create a short URL",
+    description=(
+        "Create a shortened URL with an optional "
+        "custom alias and expiration date."
+    ),
+    request=CreateURLSerializer,
+    responses={
+        201: URLResponseSerializer,
+        400: OpenApiResponse(
+            description="Validation error"
+        ),
+        429: OpenApiResponse(
+            description="Rate limit exceeded"
+        ),
+    },
+    tags=["URL Management"],
+)
 class CreateURLAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -176,6 +198,26 @@ class URLDeleteAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    summary="Redirect short URL",
+    description=(
+        "Resolve a short code and redirect the client "
+        "to the original URL. Redis is checked first "
+        "before falling back to PostgreSQL."
+    ),
+    responses={
+        302: OpenApiResponse(
+            description="Redirect to the original URL"
+        ),
+        404: OpenApiResponse(
+            description="Short URL not found"
+        ),
+        410: OpenApiResponse(
+            description="Short URL has expired"
+        ),
+    },
+    tags=["Redirect"],
+)
 class RedirectAPIView(View):
 
     throttle_classes = [URLCreationRateThrottle]
@@ -218,6 +260,24 @@ class RedirectAPIView(View):
 
         return redirect(url.long_url,permanent=False,)
 
+@extend_schema(
+    summary="Generate URL QR code",
+    description=(
+        "Generate a PNG QR code containing the short URL."
+    ),
+    responses={
+        200: OpenApiResponse(
+            description="PNG QR code"
+        ),
+        404: OpenApiResponse(
+            description="URL not found"
+        ),
+        429: OpenApiResponse(
+            description="Rate limit exceeded"
+        ),
+    },
+    tags=["URL Management"],
+)
 class URLQRCodeAPIView(APIView):
     """
     Generate a QR code for a URL owned by

@@ -17,6 +17,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path,include
 from apps.shortener.views import RedirectAPIView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,4 +29,7 @@ urlpatterns = [
     path("api/v1/urls/",include("apps.shortener.urls"),),
     path("<str:short_code>/",RedirectAPIView.as_view(),name="redirect",),
     path("api/v1/",include("apps.analytics.urls"),),
+    path("api/schema/",SpectacularAPIView.as_view(),name="schema",),
+    path("swagger/",SpectacularSwaggerView.as_view(url_name="schema"),name="swagger-ui",),
+    path("redoc/",SpectacularRedocView.as_view(url_name="schema"),name="redoc",),
 ]
