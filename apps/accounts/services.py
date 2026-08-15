@@ -4,6 +4,11 @@ from django.contrib.auth import get_user_model,authenticate
 from django.contrib.auth.models import update_last_login
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
+from config.exceptions import (
+    InvalidCredentialsException,
+    AccountAlreadyExistsException,
+    AccountIsNotActiveException
+)
 
 User = get_user_model()
 
@@ -31,10 +36,8 @@ class AuthService:
             return user
         
         except Exception:
-
             logger.exception("User registration failed")
-
-            raise
+            raise AccountAlreadyExistsException()
 
     @staticmethod
     def authenticate_user(email:str,password:str):
@@ -43,7 +46,7 @@ class AuthService:
 
         if user is None:
             logger.warning("Login failed",extra={"email": email,},)
-            raise AuthenticationFailed("Invalid email or password.")
+            raise InvalidCredentialsException()
 
         if not user.is_active:
 
@@ -52,7 +55,7 @@ class AuthService:
                 extra={"user_id": str(user.id),},
             )
 
-            raise AuthenticationFailed("User account is inactive.")
+            raise AccountIsNotActiveException()
 
         return user
 

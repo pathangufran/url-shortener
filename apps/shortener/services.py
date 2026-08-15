@@ -9,6 +9,12 @@ from django.db import IntegrityError,transaction
 from django.utils import timezone
 from django.db.models import Q
 from .utils.redis_client import RedisCache
+from config.exceptions import (
+    DuplicateAliasException,
+    ShortCodeGenerationException,
+    URLExpiredException,
+    URLNotFoundException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +86,7 @@ class URLService:
                     },
                 )
 
-                raise ValueError("This custom alias is already in use.")
+                raise DuplicateAliasException()
 
             logger.info(
                 "Short URL created with custom alias.",
@@ -127,7 +133,7 @@ class URLService:
             },
         )
 
-        raise RuntimeError("Unable to generate a unique short code.")
+        raise ShortCodeGenerationException()
 
     def get_by_short_code(self,short_code:str) -> dict:
         """
@@ -164,7 +170,7 @@ class URLService:
             url.expires_at 
             and url.expires_at <= timezone.now()
         ):
-            return "expired"
+            raise URLExpiredException()
 
         cache_data = {
             "id": str(url.id),
@@ -239,7 +245,7 @@ class URLService:
                     "url_id": str(url_id),
                 },
             )
-            return None
+            raise URLNotFoundException()
 
         logger.info(
             "URL retrieved successfully.",

@@ -24,6 +24,9 @@ from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema,
 )
+from config.exceptions import (
+    URLNotFoundException,
+)
 
 @extend_schema(
     summary="Create a short URL",
@@ -246,10 +249,7 @@ class RedirectAPIView(View):
         url = self.service.get_by_short_code(short_code)
 
         if url is None:
-            raise Http404("Short URL not found.")
-        
-        if url == "expired":
-            return HttpResponseGone("This URL has expired.")
+            raise URLNotFoundException()
 
         AnalyticsService.record_click(
             url_id=url.id,

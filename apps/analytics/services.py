@@ -6,6 +6,9 @@ from django.db.models import Count
 from apps.shortener.models import URL
 from datetime import datetime,time,timedelta
 from django.utils import timezone
+from config.exceptions import (
+    AnalyticsNotFoundException,
+)
 
 User = settings.AUTH_USER_MODEL
 
@@ -87,7 +90,7 @@ class AnalyticsService:
                     "url_id": str(url_id),
                 },
             )
-            return None
+            raise AnalyticsNotFoundException()
 
         click_events = ClickEvent.objects.filter(url=url)
         if start_date:
@@ -255,7 +258,7 @@ class AnalyticsService:
                     "url_id": str(url_id),
                 },
             )
-            return None
+            raise AnalyticsNotFoundException()
 
         queryset = (
             ClickEvent.objects

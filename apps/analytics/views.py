@@ -19,6 +19,9 @@ from drf_spectacular.utils import (
     OpenApiTypes,
     extend_schema
 )
+from config.exceptions import (
+    URLNotFoundException
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +70,7 @@ class URLAnalyticsAPIView(APIView):
         )
         
         if analytics is None:
-            raise Http404("URL not found.")
+            raise URLNotFoundException()
 
         serializer = URLAnalyticsResponseSerializer(analytics)
         logger.info(
@@ -179,7 +182,7 @@ class URLClickEventsAPIView(APIView):
             **filter_serializer.validated_data,
         )
         if queryset is None:
-            raise Http404("URL not found.")
+            raise URLNotFoundException()
         
         page = self._paginate_queryset(queryset,request,)
         serializer = ClickEventSerializer(page["results"],many=True,)
