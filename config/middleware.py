@@ -14,6 +14,12 @@ class RequestLoggingMiddleware:
         self.get_response = get_response
 
     def __call__(self,request):
+        if request.path in {
+            "/health/",
+            "/health/ready/",
+        }:
+            return self.get_response(request)
+        
         request_id = str(uuid.uuid4())
         request.request_id = request_id
         start_time = time.perf_counter()
