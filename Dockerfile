@@ -1,29 +1,26 @@
 FROM python:3.12-slim
 
-# Prevent Python from creating .pyc files
-# and ensure logs are immediately visible.
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-# Install system dependencies required by PostgreSQL
-# and Python packages that may require compilation.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        libpq-dev \
-        gcc \
+    && apt-get install --no-install-recommends -y libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first so Docker can cache
-# the dependency installation layer.
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code.
 COPY . .
+
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
+    && mkdir -p /app/staticfiles \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

@@ -10,9 +10,6 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 
-    ports:
-      - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -31,9 +28,6 @@ services:
     image: redis:7-alpine
     container_name: url_shortener_redis
     restart: unless-stopped
-
-    ports:
-      - "6379:6379"
 
     volumes:
       - redis_data:/data
@@ -60,10 +54,12 @@ services:
     container_name: url_shortener_django
     restart: unless-stopped
 
-    command: python manage.py runserver 0.0.0.0:8000
-
-    volumes:
-      - .:/app
+    command: >
+      sh -c "python manage.py migrate --noinput
+      && python manage.py collectstatic --noinput
+      && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-3} --threads ${GUNICORN_THREADS:-2}
+      --timeout ${GUNICORN_TIMEOUT:-60} --access-logfile - --error-logfile -"
 
     ports:
       - "8000:8000"
@@ -71,11 +67,21 @@ services:
     env_file:
       - .env
 
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 
   celery:
@@ -88,11 +94,34 @@ services:
 
     command: celery -A config worker --loglevel=info
 
-    volumes:
-      - .:/app
+    env_file:
+      - .env
+
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: url_shortener_celery_beat
+    restart: unless-stopped
+
+    command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
 
     env_file:
       - .env
+
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
 
     depends_on:
       postgres:

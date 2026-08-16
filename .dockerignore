@@ -14,4 +14,7 @@ htmlcov
 .idea
 .vscode
 *.log
+config/logs/
+staticfiles/
+media/
 db.sqlite3
