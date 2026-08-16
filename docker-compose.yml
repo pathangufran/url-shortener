@@ -61,14 +61,17 @@ services:
       --workers ${GUNICORN_WORKERS:-3} --threads ${GUNICORN_THREADS:-2}
       --timeout ${GUNICORN_TIMEOUT:-60} --access-logfile - --error-logfile -"
 
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
 
     env_file:
       - .env
 
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
+
+    volumes:
+      - static_volume:/app/staticfiles
 
     depends_on:
       postgres:
@@ -82,6 +85,34 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: url_shortener_nginx
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+
+    depends_on:
+      django:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1/health/ || exit 1"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 
   celery:
@@ -133,3 +164,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  static_volume:
