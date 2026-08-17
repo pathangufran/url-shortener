@@ -59,7 +59,6 @@ class CreateURLAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         url = self.service.create_short_url(
             user=request.user,
-            user=request.user,
             long_url=serializer.validated_data["long_url"],
             expires_at=serializer.validated_data.get("expires_at"),
             custom_alias=serializer.validated_data.get("custom_alias"),
@@ -248,11 +247,11 @@ class RedirectAPIView(View):
 
         url = self.service.get_by_short_code(short_code)
 
-        if url is None:
-            raise URLNotFoundException()
+        # if url is None:
+        #     raise URLNotFoundException()
 
         AnalyticsService.record_click(
-            url_id=url.id,
+            url_id=url["id"],
             ip_address=self._get_client_ip(request),
             user_agent=request.META.get("HTTP_USER_AGENT"),
             referrer=request.META.get("HTTP_REFERER"),

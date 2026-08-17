@@ -8,7 +8,7 @@ class CreateURLSerializer(serializers.ModelSerializer):
     Serializer for creating shortened URLs.
     """
     custom_alias = serializers.CharField(
-        equired=False,
+        required=False,
         allow_blank=False,
         trim_whitespace=True,
         write_only=True,
