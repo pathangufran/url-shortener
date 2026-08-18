@@ -114,7 +114,7 @@ class URLListAPIView(APIView):
 
     def get(self, request):
 
-        queryset = self.service.list_urls(request.user)
+        queryset = self.service.get_url_list(request.user)
         queryset = self.filter_queryset(queryset)
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset,request,)
@@ -124,10 +124,7 @@ class URLListAPIView(APIView):
             context={"request": request,},
         )
 
-        return paginator.get_paginated_response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
+        return paginator.get_paginated_response(serializer.data)
 
 class URLRetrieveAPIView(APIView):
     """
@@ -145,7 +142,7 @@ class URLRetrieveAPIView(APIView):
             url_id=url_id
         )
         if url is None:
-            raise Http404("URL not found.")
+            raise URLNotFoundException()
         
         serializer = URLResponseSerializer(url,context={"request": request,},)
 
@@ -171,9 +168,8 @@ class URLUpdateAPIView(APIView):
             validated_data=serializer.validated_data
         )
         if url is None:
-            raise Http404(
-                "URL not found."
-            )
+            raise URLNotFoundException()
+        
         response_serializer = URLResponseSerializer(
             url,
             context={"request": request,},
@@ -195,7 +191,7 @@ class URLDeleteAPIView(APIView):
             url_id=url_id
         )
         if url is None:
-            raise Http404("URL not found.")
+            raise URLNotFoundException()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -247,8 +243,8 @@ class RedirectAPIView(View):
 
         url = self.service.get_by_short_code(short_code)
 
-        # if url is None:
-        #     raise URLNotFoundException()
+        if url is None:
+            raise URLNotFoundException()
 
         AnalyticsService.record_click(
             url_id=url["id"],
@@ -257,7 +253,7 @@ class RedirectAPIView(View):
             referrer=request.META.get("HTTP_REFERER"),
         )
 
-        return redirect(url.long_url,permanent=False,)
+        return redirect(url["long_url"],permanent=False,)
 
 @extend_schema(
     summary="Generate URL QR code",
@@ -294,7 +290,7 @@ class URLQRCodeAPIView(APIView):
             url_id=url_id
         )
         if url is None:
-            raise Http404("URL not found.")
+            raise URLNotFoundException()
 
         short_url = request.build_absolute_uri(f"/{url.short_code}/")
 

@@ -31,11 +31,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/v1/auth/",include("apps.accounts.urls"),),
     path("api/v1/urls/",include("apps.shortener.urls"),),
-    path("<str:short_code>/",RedirectAPIView.as_view(),name="redirect",),
     path("api/v1/",include("apps.analytics.urls"),),
     path("api/schema/",SpectacularAPIView.as_view(),name="schema",),
     path("swagger/",SpectacularSwaggerView.as_view(url_name="schema"),name="swagger-ui",),
     path("redoc/",SpectacularRedocView.as_view(url_name="schema"),name="redoc",),
     path("health/",health_check,name="health",),
     path("health/ready/",readiness_check,name="readiness",),
+    path("<str:short_code>/",RedirectAPIView.as_view(),name="redirect",),
 ]

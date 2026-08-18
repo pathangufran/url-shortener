@@ -68,7 +68,7 @@ services:
       - .env
 
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.base
 
     volumes:
       - static_volume:/app/staticfiles
@@ -93,7 +93,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "80:80"
+      - "8080:80"
 
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
@@ -129,7 +129,7 @@ services:
       - .env
 
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.base
 
     depends_on:
       postgres:
@@ -152,7 +152,7 @@ services:
       - .env
 
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.base
 
     depends_on:
       postgres:

@@ -3,7 +3,7 @@ from celery import Celery
 
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",
-    "config.settings.development",
+    "config.settings.base",
 )
 
 app = Celery("url_shortener")
