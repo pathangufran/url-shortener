@@ -2,6 +2,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 
+
 class HealthCheckTests(TestCase):
 
     def test_health_check(self):
@@ -9,10 +10,7 @@ class HealthCheckTests(TestCase):
             reverse("health")
         )
 
-        self.assertEqual(
-            response.status_code,
-            200,
-        )
+        self.assertEqual(response.status_code, 200)
 
         self.assertEqual(
             response.json(),
@@ -21,23 +19,18 @@ class HealthCheckTests(TestCase):
             },
         )
 
-    @patch(
-        "config.health.redis_client.ping"
-    )
+    @patch("config.health.RedisCache")
     def test_readiness_check(
         self,
-        mock_ping,
+        mock_redis_cache,
     ):
-        mock_ping.return_value = True
+        mock_redis_cache.return_value.client.ping.return_value = True
 
         response = self.client.get(
             reverse("readiness")
         )
 
-        self.assertEqual(
-            response.status_code,
-            200,
-        )
+        self.assertEqual(response.status_code, 200)
 
         data = response.json()
 
