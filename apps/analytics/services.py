@@ -143,6 +143,7 @@ class AnalyticsService:
             .exclude(browser__isnull=True)
             .exclude(browser="")
             .values("browser")
+            .annotate(clicks=Count("id"))
             .order_by("-clicks", "browser")[
                 :AnalyticsService.BREAKDOWN_LIMIT
             ]

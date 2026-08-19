@@ -65,7 +65,7 @@ class URLAnalyticsAPIView(APIView):
 
         analytics = self.service.get_url_analytics(
             user=request.user,
-            id=url_id,
+            url_id=url_id,
             **filter_serializer.validated_data,
         )
         

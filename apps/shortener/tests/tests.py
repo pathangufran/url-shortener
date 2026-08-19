@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from .models import URL
+from ..models import URL
 
 User = get_user_model()
 
