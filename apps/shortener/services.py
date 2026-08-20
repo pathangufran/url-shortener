@@ -1,13 +1,13 @@
 import logging
 import string
 import secrets
-from typing import Optional
 from datetime import datetime
-from .models import URL
+from typing import Optional,Protocol
 from django.conf import settings
 from django.db import IntegrityError,transaction
 from django.utils import timezone
 from django.db.models import Q
+from .models import URL
 from .utils.redis_client import RedisCache
 from config.exceptions import (
     DuplicateAliasException,
@@ -18,29 +18,51 @@ from config.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-BASE62_ALPHABET = (string.ascii_letters + string.digits)
-
 User = settings.AUTH_USER_MODEL
 
+BASE62_ALPHABET = (string.ascii_letters + string.digits)
+
 SHORT_CODE_LENGTH = settings.SHORT_CODE_LENGTH
+
+class ShortCodeGenerator(Protocol):
+    """
+    Contract for short-code generators.
+    """
+
+    def generate(self) -> str:
+        ...
+
+class Base62ShortCodeGenerator:
+    """
+    Generates random Base62 short codes.
+    """
+
+    def generate(self) -> str:
+
+        return "".join(
+            secrets.choice(BASE62_ALPHABET)
+            for _ in range(SHORT_CODE_LENGTH)
+        )
 
 class URLService:
     """
     Handles business logic related to URL shortening.
     """
 
-    def __init__(self):
-        self.cache = RedisCache()
+    def __init__(self,cache=None,short_code_generator=None,):
+        self.cache = (cache or RedisCache())
+        self.short_code_generator = (
+            short_code_generator
+            or Base62ShortCodeGenerator()
+        )
 
     def generate_short_code(self) -> str:
         """
         Generate a random Base62 short code.
         """
 
-        return "".join(
-            secrets.choice(BASE62_ALPHABET)
-            for _ in range(SHORT_CODE_LENGTH)
-        )
+        return self.short_code_generator.generate()
+
 
     def get_unique_short_code(self) -> str:
         """
@@ -48,8 +70,8 @@ class URLService:
         """
 
         while True:
-
             code = self.generate_short_code()
+            
             if not URL.objects.filter(short_code=code).exists():
                 return code
 
