@@ -53,6 +53,18 @@ class URLService:
             if not URL.objects.filter(short_code=code).exists():
                 return code
 
+    def _build_cache_data(self,url: URL,) -> dict:
+        return {
+            "id": str(url.id),
+            "long_url": url.long_url,
+            "short_code": url.short_code,
+            "expires_at": (
+                url.expires_at.isoformat()
+                if url.expires_at
+                else None
+            ),
+        }
+
     def create_short_url(
         self,
         *,
@@ -164,7 +176,7 @@ class URLService:
             .first()
         )
         if url is None:
-            return None
+            return URLNotFoundException()
 
         if (
             url.expires_at 
@@ -172,16 +184,7 @@ class URLService:
         ):
             raise URLExpiredException()
 
-        cache_data = {
-            "id": str(url.id),
-            "long_url": url.long_url,
-            "short_code": url.short_code,
-            "expires_at": (
-                url.expires_at.isoformat()
-                if url.expires_at
-                else None
-            ),
-        }
+        cache_data = self._build_cache_data(url)
 
         ttl = self._calculate_cache_ttl(url.expires_at)
         if ttl > 0:
