@@ -6,6 +6,6 @@ from .token import TokenResponseSerializer
 __all__ = [
     "LoginSerializer",
     "RegisterSerializer",
+    "TokenResponseSerializer",
     "UserResponseSerializer",
-    "TokenResponseSerializer"
 ]

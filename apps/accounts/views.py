@@ -1,22 +1,23 @@
 from rest_framework import status
-from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny,IsAuthenticated
+from rest_framework.views import APIView
 
-from .services import AuthService
-from .serializers.login import LoginSerializer
-from .serializers.register import RegisterSerializer
-from .serializers.token import TokenResponseSerializer
-from .serializers.response import UserResponseSerializer
 from apps.shortener.utils.throttling import AuthenticationRateThrottle
 
-class RegisterAPIView(APIView):
+from .serializers.login import LoginSerializer
+from .serializers.register import RegisterSerializer
+from .serializers.response import UserResponseSerializer
+from .serializers.token import TokenResponseSerializer
+from .services import AuthService
 
+
+class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthenticationRateThrottle]
 
-    def post(self,request:Request) -> Response:
+    def post(self, request: Request) -> Response:
 
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -25,19 +26,22 @@ class RegisterAPIView(APIView):
 
         response = UserResponseSerializer(user)
 
-        return Response(response.data,status=status.HTTP_201_CREATED,)
+        return Response(
+            response.data,
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class LoginAPIView(APIView):
-
     permission_classes = [AllowAny]
     throttle_classes = [AuthenticationRateThrottle]
 
-    def post(self,request):
+    def post(self, request):
 
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        serializer_data = serializer.validated_data 
+        serializer_data = serializer.validated_data
 
         user = AuthService.authenticate_user(
             email=serializer_data["email"],
@@ -48,15 +52,18 @@ class LoginAPIView(APIView):
 
         response = TokenResponseSerializer(tokens)
 
-        return Response(response.data,status=status.HTTP_200_OK,)
+        return Response(
+            response.data,
+            status=status.HTTP_200_OK,
+        )
+
 
 class ProfileAPIView(APIView):
-
     permission_classes = [IsAuthenticated]
     throttle_classes = [AuthenticationRateThrottle]
 
-    def get(self,request):
+    def get(self, request):
 
         user = AuthService.get_profile(request.user)
         serializer = UserResponseSerializer(user)
-        return Response(serializer.data,status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
