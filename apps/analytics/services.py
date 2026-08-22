@@ -1,18 +1,22 @@
 import logging
-from .tasks import record_click_event
-from .models import ClickEvent
+from datetime import datetime, time, timedelta
+
 from django.conf import settings
 from django.db.models import Count
-from apps.shortener.models import URL
-from datetime import datetime,time,timedelta
 from django.utils import timezone
+
+from apps.shortener.models import URL
 from config.exceptions import (
     AnalyticsNotFoundException,
 )
 
+from .models import ClickEvent
+from .tasks import record_click_event
+
 User = settings.AUTH_USER_MODEL
 
 logger = logging.getLogger(__name__)
+
 
 class AnalyticsService:
     """
@@ -24,7 +28,7 @@ class AnalyticsService:
     @staticmethod
     def record_click(
         *,
-        url_id:str,
+        url_id: str,
         ip_address=None,
         country=None,
         user_agent=None,
@@ -40,7 +44,6 @@ class AnalyticsService:
         the URL redirect.
         """
         try:
-            
             task = record_click_event.delay(
                 url_id=str(url_id),
                 ip_address=ip_address,
@@ -71,16 +74,16 @@ class AnalyticsService:
             return None
 
     @staticmethod
-    def get_url_analytics(*,user:User,url_id:str,
-        start_date=None,end_date=None) -> list[dict]:
+    def get_url_analytics(
+        *, user: User, url_id: str, start_date=None, end_date=None
+    ) -> list[dict]:
         """
         Generate analytics for a URL owned by the
         authenticated user.
         """
 
         try:
-
-            url = URL.objects.get(id=url_id,user=user)
+            url = URL.objects.get(id=url_id, user=user)
 
         except URL.DoesNotExist:
             logger.warning(
@@ -101,9 +104,7 @@ class AnalyticsService:
                 )
             )
 
-            click_events = click_events.filter(
-                clicked_at__gte=start_datetime
-            )
+            click_events = click_events.filter(clicked_at__gte=start_datetime)
 
         if end_date:
             end_datetime = timezone.make_aware(
@@ -113,14 +114,11 @@ class AnalyticsService:
                 )
             )
 
-            click_events = click_events.filter(
-                clicked_at__lt=end_datetime
-            )
+            click_events = click_events.filter(clicked_at__lt=end_datetime)
         total_clicks = click_events.count()
 
         unique_visitors = (
-            click_events
-            .exclude(ip_address__isnull=True)
+            click_events.exclude(ip_address__isnull=True)
             .exclude(ip_address="")
             .values("ip_address")
             .distinct()
@@ -128,47 +126,35 @@ class AnalyticsService:
         )
 
         top_countries = (
-            click_events
-            .exclude(country__isnull=True)
+            click_events.exclude(country__isnull=True)
             .exclude(country="")
             .values("country")
             .annotate(clicks=Count("id"))
-            .order_by("-clicks", "country")[
-                :AnalyticsService.BREAKDOWN_LIMIT
-            ]
+            .order_by("-clicks", "country")[: AnalyticsService.BREAKDOWN_LIMIT]
         )
 
         top_browsers = (
-            click_events
-            .exclude(browser__isnull=True)
+            click_events.exclude(browser__isnull=True)
             .exclude(browser="")
             .values("browser")
             .annotate(clicks=Count("id"))
-            .order_by("-clicks", "browser")[
-                :AnalyticsService.BREAKDOWN_LIMIT
-            ]
+            .order_by("-clicks", "browser")[: AnalyticsService.BREAKDOWN_LIMIT]
         )
 
         top_devices = (
-            click_events
-            .exclude(device__isnull=True)
+            click_events.exclude(device__isnull=True)
             .exclude(device="")
             .values("device")
             .annotate(clicks=Count("id"))
-            .order_by("-clicks", "device")[
-                :AnalyticsService.BREAKDOWN_LIMIT
-            ]
+            .order_by("-clicks", "device")[: AnalyticsService.BREAKDOWN_LIMIT]
         )
 
         top_referrers = (
-            click_events
-            .exclude(referrer__isnull=True)
+            click_events.exclude(referrer__isnull=True)
             .exclude(referrer="")
             .values("referrer")
             .annotate(clicks=Count("id"))
-            .order_by("-clicks", "referrer")[
-                :AnalyticsService.BREAKDOWN_LIMIT
-            ]
+            .order_by("-clicks", "referrer")[: AnalyticsService.BREAKDOWN_LIMIT]
         )
 
         analytics = {
@@ -209,16 +195,8 @@ class AnalyticsService:
             extra={
                 "user_id": str(user.id),
                 "url_id": str(url.id),
-                "start_date": (
-                    str(start_date)
-                    if start_date
-                    else None
-                ),
-                "end_date": (
-                    str(end_date)
-                    if end_date
-                    else None
-                ),
+                "start_date": (str(start_date) if start_date else None),
+                "end_date": (str(end_date) if end_date else None),
                 "total_clicks": total_clicks,
                 "unique_visitors": unique_visitors,
             },
@@ -229,8 +207,8 @@ class AnalyticsService:
     @staticmethod
     def get_click_events(
         *,
-        user:User,
-        url_id:str,
+        user: User,
+        url_id: str,
         start_date=None,
         end_date=None,
         browser=None,
@@ -246,14 +224,11 @@ class AnalyticsService:
         """
 
         try:
-            url = (
-                URL.objects.get(id=url_id,user=user)
-            )
+            url = URL.objects.get(id=url_id, user=user)
 
         except URL.DoesNotExist:
             logger.warning(
-                "Click events requested for missing "
-                "or unauthorized URL.",
+                "Click events requested for missing or unauthorized URL.",
                 extra={
                     "user_id": str(user.id),
                     "url_id": str(url_id),
@@ -261,18 +236,14 @@ class AnalyticsService:
             )
             raise AnalyticsNotFoundException()
 
-        queryset = (
-            ClickEvent.objects
-            .filter(url=url)
-            .only(
-                "id",
-                "ip_address",
-                "country",
-                "browser",
-                "device",
-                "referrer",
-                "clicked_at",
-            )
+        queryset = ClickEvent.objects.filter(url=url).only(
+            "id",
+            "ip_address",
+            "country",
+            "browser",
+            "device",
+            "referrer",
+            "clicked_at",
         )
         if start_date:
             start_datetime = timezone.make_aware(
@@ -282,9 +253,7 @@ class AnalyticsService:
                 )
             )
 
-            queryset = queryset.filter(
-                clicked_at__gte=start_datetime
-            )
+            queryset = queryset.filter(clicked_at__gte=start_datetime)
         if end_date:
             end_datetime = timezone.make_aware(
                 datetime.combine(
@@ -293,24 +262,16 @@ class AnalyticsService:
                 )
             )
 
-            queryset = queryset.filter(
-                clicked_at__lt=end_datetime
-            )
+            queryset = queryset.filter(clicked_at__lt=end_datetime)
 
         if browser:
-            queryset = queryset.filter(
-                browser__iexact=browser
-            )
+            queryset = queryset.filter(browser__iexact=browser)
 
         if device:
-            queryset = queryset.filter(
-                device__iexact=device
-            )
+            queryset = queryset.filter(device__iexact=device)
 
         if country:
-            queryset = queryset.filter(
-                country__iexact=country
-            )
+            queryset = queryset.filter(country__iexact=country)
 
         allowed_ordering = {
             "clicked_at",
@@ -331,16 +292,8 @@ class AnalyticsService:
             extra={
                 "user_id": str(user.id),
                 "url_id": str(url.id),
-                "start_date": (
-                    str(start_date)
-                    if start_date
-                    else None
-                ),
-                "end_date": (
-                    str(end_date)
-                    if end_date
-                    else None
-                ),
+                "start_date": (str(start_date) if start_date else None),
+                "end_date": (str(end_date) if end_date else None),
                 "browser": browser,
                 "device": device,
                 "country": country,
