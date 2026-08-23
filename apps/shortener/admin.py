@@ -1,5 +1,7 @@
 from django.contrib import admin
+
 from .models import URL
+
 
 @admin.register(URL)
 class URLAdmin(admin.ModelAdmin):
@@ -17,10 +19,6 @@ class URLAdmin(admin.ModelAdmin):
         "user__email",
     )
 
-    list_filter = (
-        "is_active",
-    )
+    list_filter = ("is_active",)
 
-    ordering = (
-        "-created_at",
-    )
+    ordering = ("-created_at",)
