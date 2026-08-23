@@ -1,33 +1,53 @@
+import re
+from urllib.parse import urlsplit
+
 from django.utils import timezone
 from rest_framework import serializers
+
 from .models import URL
-import re
+
 
 class CreateURLSerializer(serializers.ModelSerializer):
     """
     Serializer for creating shortened URLs.
     """
+
     custom_alias = serializers.CharField(
         required=False,
         allow_blank=False,
         trim_whitespace=True,
         write_only=True,
     )
+
     class Meta:
         model = URL
-        fields = ["long_url","expires_at","custom_alias",]
+        fields = [
+            "long_url",
+            "expires_at",
+            "custom_alias",
+        ]
 
-    def validate_expires_at(self,value):
-        if value <= timezone.now():
+    def validate_long_url(self, value):
+        """Only allow browser-redirectable HTTP(S) destinations."""
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise serializers.ValidationError(
-                "Expiration time must be in the future."
+                "Only absolute http:// and https:// URLs are supported."
             )
+        return value
+
+    def validate_expires_at(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError("Expiration time must be in the future.")
 
         return value
 
-    def validate_custom_alias(self,value):
+    def validate_custom_alias(self, value):
         value = value.strip().lower()
-        if not re.fullmatch(r"[a-z0-9_-]{3,50}",value,):
+        if not re.fullmatch(
+            r"[a-z0-9_-]{3,50}",
+            value,
+        ):
             raise serializers.ValidationError(
                 "Custom alias must contain only "
                 "letters, numbers, hyphens, or underscores "
@@ -52,28 +72,41 @@ class CreateURLSerializer(serializers.ModelSerializer):
                 "This alias is reserved and cannot be used."
             )
         if URL.objects.filter(short_code=value).exists():
-            raise serializers.ValidationError(
-                "This custom alias is already in use."
-            )
+            raise serializers.ValidationError("This custom alias is already in use.")
         return value
 
 
 class UpdateURLSerializer(serializers.Serializer):
-    long_url = serializers.URLField()
+    long_url = serializers.URLField(required=False)
     expires_at = serializers.DateTimeField(
         required=False,
         allow_null=True,
     )
-    is_active = serializers.BooleanField(required=False,)
+    is_active = serializers.BooleanField(
+        required=False,
+    )
 
-    def validate(self,attrs):
+    def validate(self, attrs):
         if not attrs:
             raise serializers.ValidationError(
                 "At least one field is required for update."
             )
 
         return attrs
-    
+
+    def validate_long_url(self, value):
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise serializers.ValidationError(
+                "Only absolute http:// and https:// URLs are supported."
+            )
+        return value
+
+    def validate_expires_at(self, value):
+        if value is not None and value <= timezone.now():
+            raise serializers.ValidationError("Expiration time must be in the future.")
+        return value
+
 
 class URLResponseSerializer(serializers.ModelSerializer):
     short_url = serializers.SerializerMethodField()
@@ -90,7 +123,7 @@ class URLResponseSerializer(serializers.ModelSerializer):
             "created_at",
         )
 
-    def get_short_url(self,obj):
+    def get_short_url(self, obj):
         request = self.context.get("request")
 
         if request:

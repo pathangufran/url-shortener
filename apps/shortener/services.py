@@ -1,14 +1,13 @@
 import logging
-import string
 import secrets
+import string
 from datetime import datetime
-from typing import Optional,Protocol
+from typing import Protocol
+
 from django.conf import settings
-from django.db import IntegrityError,transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
-from django.db.models import Q
-from .models import URL
-from .utils.redis_client import RedisCache
+
 from config.exceptions import (
     DuplicateAliasException,
     ShortCodeGenerationException,
@@ -16,21 +15,25 @@ from config.exceptions import (
     URLNotFoundException,
 )
 
+from .models import URL
+from .utils.redis_client import RedisCache
+
 logger = logging.getLogger(__name__)
 
 User = settings.AUTH_USER_MODEL
 
-BASE62_ALPHABET = (string.ascii_letters + string.digits)
+BASE62_ALPHABET = string.ascii_letters + string.digits
 
 SHORT_CODE_LENGTH = settings.SHORT_CODE_LENGTH
+
 
 class ShortCodeGenerator(Protocol):
     """
     Contract for short-code generators.
     """
 
-    def generate(self) -> str:
-        ...
+    def generate(self) -> str: ...
+
 
 class Base62ShortCodeGenerator:
     """
@@ -40,21 +43,22 @@ class Base62ShortCodeGenerator:
     def generate(self) -> str:
 
         return "".join(
-            secrets.choice(BASE62_ALPHABET)
-            for _ in range(SHORT_CODE_LENGTH)
+            secrets.choice(BASE62_ALPHABET) for _ in range(SHORT_CODE_LENGTH)
         )
+
 
 class URLService:
     """
     Handles business logic related to URL shortening.
     """
 
-    def __init__(self,cache=None,short_code_generator=None,):
-        self.cache = (cache or RedisCache())
-        self.short_code_generator = (
-            short_code_generator
-            or Base62ShortCodeGenerator()
-        )
+    def __init__(
+        self,
+        cache=None,
+        short_code_generator=None,
+    ):
+        self.cache = cache or RedisCache()
+        self.short_code_generator = short_code_generator or Base62ShortCodeGenerator()
 
     def generate_short_code(self) -> str:
         """
@@ -63,38 +67,37 @@ class URLService:
 
         return self.short_code_generator.generate()
 
-
     def get_unique_short_code(self) -> str:
         """
         Generate a unique short code.
         """
 
-        while True:
+        for _ in range(20):
             code = self.generate_short_code()
-            
+
             if not URL.objects.filter(short_code=code).exists():
                 return code
+        raise ShortCodeGenerationException()
 
-    def _build_cache_data(self,url: URL,) -> dict:
+    def _build_cache_data(
+        self,
+        url: URL,
+    ) -> dict:
         return {
             "id": str(url.id),
             "long_url": url.long_url,
             "short_code": url.short_code,
-            "expires_at": (
-                url.expires_at.isoformat()
-                if url.expires_at
-                else None
-            ),
+            "expires_at": (url.expires_at.isoformat() if url.expires_at else None),
         }
 
     def create_short_url(
         self,
         *,
-        user:User,
-        long_url:str,
-        expires_at: Optional[datetime] = None,
+        user: User,
+        long_url: str,
+        expires_at: datetime | None = None,
         custom_alias=None,
-        ) -> str:
+    ) -> URL:
         """
         Create a shortened URL using either a custom alias
         or a generated short code.
@@ -103,7 +106,7 @@ class URLService:
         max_attempts = 5
         if custom_alias:
             try:
-                URL.objects.create(
+                url = URL.objects.create(
                     user=user,
                     long_url=long_url,
                     short_code=custom_alias,
@@ -112,8 +115,7 @@ class URLService:
 
             except IntegrityError:
                 logger.warning(
-                    "Custom alias creation failed due to "
-                    "duplicate alias.",
+                    "Custom alias creation failed due to duplicate alias.",
                     extra={
                         "user_id": str(user.id),
                         "custom_alias": custom_alias,
@@ -153,10 +155,11 @@ class URLService:
                     return url
 
             except IntegrityError:
-
                 logger.warning(
                     "Short code collision detected. Retrying...",
-                    extra={"attempt": attempt + 1,},
+                    extra={
+                        "attempt": attempt + 1,
+                    },
                 )
 
         logger.error(
@@ -169,7 +172,7 @@ class URLService:
 
         raise ShortCodeGenerationException()
 
-    def get_by_short_code(self,short_code:str) -> dict:
+    def get_by_short_code(self, short_code: str) -> dict:
         """
         Retrieve an active URL.
 
@@ -179,31 +182,38 @@ class URLService:
 
         cached_url = self.cache.get_url(short_code)
         if cached_url:
-            logger.info(
-                "URL cache hit.",
-                extra={"short_code": short_code,},
-            )
-            return cached_url
-        
+            expires_at = cached_url.get("expires_at")
+            if expires_at:
+                try:
+                    is_expired = datetime.fromisoformat(expires_at) <= timezone.now()
+                except (TypeError, ValueError):
+                    self.cache.delete_url(short_code)
+                    cached_url = None
+                    is_expired = False
+                if cached_url and is_expired:
+                    self.cache.delete_url(short_code)
+                    raise URLExpiredException()
+            if cached_url:
+                logger.info(
+                    "URL cache hit.",
+                    extra={
+                        "short_code": short_code,
+                    },
+                )
+                return cached_url
+
         logger.info(
             "URL cache miss.",
-            extra={"short_code": short_code,},
+            extra={
+                "short_code": short_code,
+            },
         )
 
-        url = (
-            URL.objects.filter(
-                short_code=short_code,
-                is_active=True
-            )
-            .first()
-        )
+        url = URL.objects.filter(short_code=short_code, is_active=True).first()
         if url is None:
-            return URLNotFoundException()
+            raise URLNotFoundException()
 
-        if (
-            url.expires_at 
-            and url.expires_at <= timezone.now()
-        ):
+        if url.expires_at and url.expires_at <= timezone.now():
             raise URLExpiredException()
 
         cache_data = self._build_cache_data(url)
@@ -217,39 +227,44 @@ class URLService:
             )
         return cache_data
 
-    def _calculate_cache_ttl(self,expires_at=None,) -> int:
+    def _calculate_cache_ttl(
+        self,
+        expires_at=None,
+    ) -> int:
 
         ttl = settings.URL_CACHE_TTL
         if expires_at:
-            remaining_seconds = int(
-                (expires_at- timezone.now()).total_seconds()
-            )
+            remaining_seconds = int((expires_at - timezone.now()).total_seconds())
 
             if remaining_seconds <= 0:
                 return 0
 
-            ttl = min(ttl,remaining_seconds,)
+            ttl = min(
+                ttl,
+                remaining_seconds,
+            )
 
         return ttl
 
-    def get_url_list(self,user:User) -> list[dict]:
+    def get_url_list(self, user: User) -> list[dict]:
         """
         Base queryset for authenticated user's URLs.
 
         Filtering, searching, ordering and pagination
         are applied inside the view.
         """
-        queryset = (
-            URL.objects.select_related("user").
-            filter(user=user,)
+        queryset = URL.objects.select_related("user").filter(
+            user=user,
         )
         logger.info(
             "Fetching user URLs.",
-            extra={"user_id": str(user.id),},
+            extra={
+                "user_id": str(user.id),
+            },
         )
         return queryset
 
-    def get_users_url(self,*,user:User,url_id:str) -> dict:
+    def get_users_url(self, *, user: User, url_id: str) -> dict:
         """
         Retrieve a URL belonging to the authenticated user.
 
@@ -257,9 +272,9 @@ class URLService:
         """
 
         try:
-            url = (
-                URL.objects.select_related("user").
-                get(id=url_id,user=user,)
+            url = URL.objects.select_related("user").get(
+                id=url_id,
+                user=user,
             )
 
         except URL.DoesNotExist:
@@ -284,14 +299,14 @@ class URLService:
         return url
 
     @transaction.atomic
-    def update_url(self,*,user:User,url_id:str,validated_data:dict) -> dict:
+    def update_url(self, *, user: User, url_id: str, validated_data: dict) -> dict:
         """
         Update a URL belonging to the authenticated user.
         """
         try:
-            url = (
-                URL.objects.select_for_update().
-                get(user=user,id=url_id,)
+            url = URL.objects.select_for_update().get(
+                user=user,
+                id=url_id,
             )
 
         except URL.DoesNotExist:
@@ -303,11 +318,16 @@ class URLService:
                 },
             )
             return None
-        
-        for field,value in validated_data.items():
+
+        for field, value in validated_data.items():
             setattr(url, field, value)
 
-        url.save(update_fields=[*validated_data.keys(),"updated_at",])
+        url.save(
+            update_fields=[
+                *validated_data.keys(),
+                "updated_at",
+            ]
+        )
 
         self.cache.delete_url(url.short_code)
 
@@ -317,25 +337,20 @@ class URLService:
                 "user_id": str(user.id),
                 "url_id": str(url.id),
                 "short_code": url.short_code,
-                "updated_fields": list(
-                    validated_data.keys()
-                ),
+                "updated_fields": list(validated_data.keys()),
             },
         )
 
         return url
-        
+
     @transaction.atomic
-    def delete_url(self,*,user:User,url_id:str) -> dict:
+    def delete_url(self, *, user: User, url_id: str) -> dict:
         """
         Soft delete a URL belonging to the authenticated user.
         """
 
         try:
-            url = (
-                URL.objects.select_for_update().
-                get(id=url_id,user=user)
-            )
+            url = URL.objects.select_for_update().get(id=url_id, user=user)
 
         except URL.DoesNotExist:
             logger.warning(
@@ -359,7 +374,12 @@ class URLService:
             return url
 
         url.is_active = False
-        url.save(update_fields=["is_active","updated_at",])
+        url.save(
+            update_fields=[
+                "is_active",
+                "updated_at",
+            ]
+        )
 
         self.cache.delete_url(url.short_code)
 
@@ -372,7 +392,3 @@ class URLService:
             },
         )
         return url
-
-
-        
-        
