@@ -1,9 +1,11 @@
 import json
 import logging
+
 import redis
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
 
 class RedisCache:
     """
@@ -16,9 +18,11 @@ class RedisCache:
         self.client = redis.Redis.from_url(
             settings.REDIS_CACHE_URL,
             decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
         )
 
-    def get_url(self, short_code:str) -> dict:
+    def get_url(self, short_code: str) -> dict:
         """
         Retrieve a cached URL.
         """
@@ -31,7 +35,10 @@ class RedisCache:
 
             return json.loads(cached_data)
 
-        except (redis.RedisError,json.JSONDecodeError,):
+        except (
+            redis.RedisError,
+            json.JSONDecodeError,
+        ):
             logger.exception(
                 "Failed to retrieve URL from Redis.",
                 extra={
@@ -41,14 +48,24 @@ class RedisCache:
             )
             return None
 
-    def set_url(self,*,short_code:str,data:dict,ttl:int,) -> bool:
+    def set_url(
+        self,
+        *,
+        short_code: str,
+        data: dict,
+        ttl: int,
+    ) -> bool:
         """
         Store URL data in Redis with TTL.
         """
 
         key = self._get_key(short_code)
         try:
-            self.client.setex(key,ttl,json.dumps(data),)
+            self.client.setex(
+                key,
+                ttl,
+                json.dumps(data),
+            )
             logger.info(
                 "URL cached successfully.",
                 extra={
@@ -58,7 +75,10 @@ class RedisCache:
             )
             return True
 
-        except (redis.RedisError,TypeError,):
+        except (
+            redis.RedisError,
+            TypeError,
+        ):
             logger.exception(
                 "Failed to cache URL.",
                 extra={
@@ -67,7 +87,7 @@ class RedisCache:
             )
             return False
 
-    def delete_url(self, short_code:str) -> bool:
+    def delete_url(self, short_code: str) -> bool:
         """
         Remove URL from Redis cache.
         """
@@ -94,7 +114,7 @@ class RedisCache:
             return False
 
     @classmethod
-    def _get_key(cls, short_code:str) -> str:
+    def _get_key(cls, short_code: str) -> str:
         """
         Generate Redis cache key.
         """

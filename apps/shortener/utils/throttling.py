@@ -1,7 +1,10 @@
-from rest_framework.throttling import BaseThrottle
-from .rate_limiter import RateLimiter
-from rest_framework.views import View
+from django.conf import settings
 from rest_framework.request import Request
+from rest_framework.throttling import BaseThrottle
+from rest_framework.views import View
+
+from .rate_limiter import RateLimiter
+
 
 class RedisRateThrottle(BaseThrottle):
     """
@@ -12,15 +15,13 @@ class RedisRateThrottle(BaseThrottle):
     limit = 100
     window_seconds = 60
 
-    def allow_request(self,request:Request,view:View) -> bool:
+    def allow_request(self, request: Request, view: View) -> bool:
 
         identifier = self.get_identifier(request)
-        allowed, remaining, retry_after = (
-            self.rate_limiter.is_allowed(
-                identifier=identifier,
-                limit=self.limit,
-                window_seconds=self.window_seconds,
-            )
+        allowed, remaining, retry_after = self.rate_limiter.is_allowed(
+            identifier=identifier,
+            limit=self.limit,
+            window_seconds=self.window_seconds,
         )
 
         self.remaining = remaining
@@ -28,14 +29,14 @@ class RedisRateThrottle(BaseThrottle):
 
         return allowed
 
-    def wait(self) -> None:
+    def wait(self):
         if self.retry_after:
             return self.retry_after
 
         return None
 
     @staticmethod
-    def get_identifier(request:Request) -> str:
+    def get_identifier(request: Request) -> str:
         """
         Identify the client.
 
@@ -43,17 +44,25 @@ class RedisRateThrottle(BaseThrottle):
         Anonymous users are identified by IP.
         """
 
-        if request.user.is_authenticated:
-            return (f"user:{request.user.id}")
+        if getattr(request, "user", None) and request.user.is_authenticated:
+            return f"user:{request.user.id}"
 
-        forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        forwarded_for = (
+            request.META.get("HTTP_X_FORWARDED_FOR")
+            if settings.USE_X_FORWARDED_FOR
+            else None
+        )
 
         if forwarded_for:
-            ip_address = (forwarded_for.split(",")[0].strip())
+            ip_address = forwarded_for.split(",")[0].strip()
         else:
-            ip_address = request.META.get("REMOTE_ADDR","unknown",)
+            ip_address = request.META.get(
+                "REMOTE_ADDR",
+                "unknown",
+            )
 
         return f"ip:{ip_address}"
+
 
 class AuthenticationRateThrottle(RedisRateThrottle):
     """
@@ -62,6 +71,7 @@ class AuthenticationRateThrottle(RedisRateThrottle):
 
     limit = 10
     window_seconds = 60
+
 
 class URLCreationRateThrottle(RedisRateThrottle):
     """
