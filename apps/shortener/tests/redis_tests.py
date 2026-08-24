@@ -1,23 +1,25 @@
-from apps.shortener.utils.redis_client import RedisCache
-from rest_framework.test import APITestCase
 from unittest.mock import patch
+
 import redis
+from rest_framework.test import APITestCase
+
+from apps.shortener.utils.redis_client import RedisCache
+
 
 class RedisCacheTestCase(APITestCase):
     """
     Tests for Redis URL caching.
     """
 
-    @patch(
-        "apps.shortener.redis_client.redis.Redis.from_url"
-    )
-    def test_set_and_get_url(self,mock_redis,):
+    @patch("apps.shortener.utils.redis_client.redis.Redis.from_url")
+    def test_set_and_get_url(
+        self,
+        mock_redis,
+    ):
 
         mock_client = mock_redis.return_value
 
-        mock_client.get.return_value = (
-            '{"long_url": "https://example.com"}'
-        )
+        mock_client.get.return_value = '{"long_url": "https://example.com"}'
 
         cache = RedisCache()
 
@@ -29,10 +31,11 @@ class RedisCacheTestCase(APITestCase):
 
         mock_client.get.assert_called_once_with("url:abc123")
 
-    @patch(
-        "apps.shortener.redis_client.redis.Redis.from_url"
-    )
-    def test_delete_url(self,mock_redis,):
+    @patch("apps.shortener.utils.redis_client.redis.Redis.from_url")
+    def test_delete_url(
+        self,
+        mock_redis,
+    ):
 
         mock_client = mock_redis.return_value
         mock_client.delete.return_value = 1
@@ -43,20 +46,17 @@ class RedisCacheTestCase(APITestCase):
 
         self.assertTrue(result)
 
-        mock_client.delete.assert_called_once_with(
-            "url:abc123"
-        )
+        mock_client.delete.assert_called_once_with("url:abc123")
 
-    @patch(
-        "apps.shortener.redis_client.redis.Redis.from_url"
-    )
-    def test_cache_failure_does_not_raise(self,mock_redis,):
+    @patch("apps.shortener.utils.redis_client.redis.Redis.from_url")
+    def test_cache_failure_does_not_raise(
+        self,
+        mock_redis,
+    ):
 
         mock_client = mock_redis.return_value
 
-        mock_client.get.side_effect = (
-            redis.RedisError("Redis unavailable")
-        )
+        mock_client.get.side_effect = redis.RedisError("Redis unavailable")
 
         cache = RedisCache()
 

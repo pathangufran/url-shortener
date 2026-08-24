@@ -1,59 +1,50 @@
-from rest_framework import status,filters
-from rest_framework.views import APIView
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .services import URLService 
-from .pagination import URLPagination
-from .filters import URLFilter
-from .serializers import (
-    CreateURLSerializer,
-    URLResponseSerializer,
-    UpdateURLSerializer
-)
-from django.http import Http404,HttpResponseGone
-from django.shortcuts import redirect
-from django.views import View
-from django_filters.rest_framework import DjangoFilterBackend
-from apps.analytics.services import AnalyticsService
-from .utils.throttling import URLCreationRateThrottle,RedirectRateThrottle
-from django.http import Http404
+from django.conf import settings
 from django.http import FileResponse
-from .utils.qr import generate_qr_code
+from django.shortcuts import redirect
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema,
 )
+from rest_framework import filters, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.analytics.services import AnalyticsService
 from config.exceptions import (
     URLNotFoundException,
 )
 
+from .filters import URLFilter
+from .pagination import URLPagination
+from .serializers import CreateURLSerializer, UpdateURLSerializer, URLResponseSerializer
+from .services import URLService
+from .utils.qr import generate_qr_code
+from .utils.throttling import RedirectRateThrottle, URLCreationRateThrottle
+
+
 @extend_schema(
     summary="Create a short URL",
     description=(
-        "Create a shortened URL with an optional "
-        "custom alias and expiration date."
+        "Create a shortened URL with an optional custom alias and expiration date."
     ),
     request=CreateURLSerializer,
     responses={
         201: URLResponseSerializer,
-        400: OpenApiResponse(
-            description="Validation error"
-        ),
-        429: OpenApiResponse(
-            description="Rate limit exceeded"
-        ),
+        400: OpenApiResponse(description="Validation error"),
+        429: OpenApiResponse(description="Rate limit exceeded"),
     },
     tags=["URL Management"],
 )
 class CreateURLAPIView(APIView):
-
     permission_classes = [IsAuthenticated]
     throttle_classes = [URLCreationRateThrottle]
 
     service = URLService()
 
-    def post(self,request:Request) -> Response:
+    def post(self, request: Request) -> Response:
 
         serializer = CreateURLSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -63,8 +54,13 @@ class CreateURLAPIView(APIView):
             expires_at=serializer.validated_data.get("expires_at"),
             custom_alias=serializer.validated_data.get("custom_alias"),
         )
-        response = URLResponseSerializer(url,context={"request": request,},)
-        return Response(response.data,status=status.HTTP_201_CREATED)
+        response = URLResponseSerializer(
+            url,
+            context={
+                "request": request,
+            },
+        )
+        return Response(response.data, status=status.HTTP_201_CREATED)
 
 
 class URLListAPIView(APIView):
@@ -90,11 +86,19 @@ class URLListAPIView(APIView):
 
     filterset_class = URLFilter
 
-    search_fields = ["long_url","short_code",]
+    search_fields = [
+        "long_url",
+        "short_code",
+    ]
 
-    ordering_fields = ["created_at","expires_at",]
+    ordering_fields = [
+        "created_at",
+        "expires_at",
+    ]
 
-    ordering = ["-created_at",]
+    ordering = [
+        "-created_at",
+    ]
 
     pagination_class = URLPagination
 
@@ -117,14 +121,21 @@ class URLListAPIView(APIView):
         queryset = self.service.get_url_list(request.user)
         queryset = self.filter_queryset(queryset)
         paginator = self.pagination_class()
-        page = paginator.paginate_queryset(queryset,request,)
+        page = paginator.paginate_queryset(
+            queryset,
+            request,
+        )
 
         serializer = URLResponseSerializer(
-            page,many=True,
-            context={"request": request,},
+            page,
+            many=True,
+            context={
+                "request": request,
+            },
         )
 
         return paginator.get_paginated_response(serializer.data)
+
 
 class URLRetrieveAPIView(APIView):
     """
@@ -135,18 +146,24 @@ class URLRetrieveAPIView(APIView):
 
     service = URLService()
 
-    def get(self,request:Request,url_id:str) -> Response:
+    def get(self, request: Request, url_id: str) -> Response:
 
-        url = self.service.get_users_url(
-            user=request.user,
-            url_id=url_id
-        )
+        url = self.service.get_users_url(user=request.user, url_id=url_id)
         if url is None:
             raise URLNotFoundException()
-        
-        serializer = URLResponseSerializer(url,context={"request": request,},)
 
-        return Response(serializer.data,status=status.HTTP_200_OK,)
+        serializer = URLResponseSerializer(
+            url,
+            context={
+                "request": request,
+            },
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
 
 class URLUpdateAPIView(APIView):
     """
@@ -156,40 +173,39 @@ class URLUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     service = URLService()
 
-    def patch(self,request:Request,url_id:str) -> Response:
+    def patch(self, request: Request, url_id: str) -> Response:
 
         serializer = UpdateURLSerializer(
-            data=request.data,partial=True,
+            data=request.data,
+            partial=True,
         )
         serializer.is_valid(raise_exception=True)
         url = self.service.update_url(
-            user=request.user,
-            url_id=url_id,
-            validated_data=serializer.validated_data
+            user=request.user, url_id=url_id, validated_data=serializer.validated_data
         )
         if url is None:
             raise URLNotFoundException()
-        
+
         response_serializer = URLResponseSerializer(
             url,
-            context={"request": request,},
-        ) 
+            context={
+                "request": request,
+            },
+        )
         return Response(
-            response_serializer.data,status=status.HTTP_200_OK,
+            response_serializer.data,
+            status=status.HTTP_200_OK,
         )
 
-class URLDeleteAPIView(APIView):
 
+class URLDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     service = URLService()
 
-    def delete(self,request:Request,url_id:str) -> Response:
+    def delete(self, request: Request, url_id: str) -> Response:
 
-        url = self.service.delete_url(
-            user=request.user,
-            url_id=url_id
-        )
+        url = self.service.delete_url(user=request.user, url_id=url_id)
         if url is None:
             raise URLNotFoundException()
 
@@ -204,21 +220,15 @@ class URLDeleteAPIView(APIView):
         "before falling back to PostgreSQL."
     ),
     responses={
-        302: OpenApiResponse(
-            description="Redirect to the original URL"
-        ),
-        404: OpenApiResponse(
-            description="Short URL not found"
-        ),
-        410: OpenApiResponse(
-            description="Short URL has expired"
-        ),
+        302: OpenApiResponse(description="Redirect to the original URL"),
+        404: OpenApiResponse(description="Short URL not found"),
+        410: OpenApiResponse(description="Short URL has expired"),
     },
     tags=["Redirect"],
 )
-class RedirectAPIView(View):
-
-    throttle_classes = [URLCreationRateThrottle]
+class RedirectAPIView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [RedirectRateThrottle]
 
     service = URLService()
 
@@ -232,19 +242,20 @@ class RedirectAPIView(View):
         will be configured during production deployment.
         """
 
-        forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        forwarded_for = (
+            request.META.get("HTTP_X_FORWARDED_FOR")
+            if settings.USE_X_FORWARDED_FOR
+            else None
+        )
 
         if forwarded_for:
             return forwarded_for.split(",")[0].strip()
 
         return request.META.get("REMOTE_ADDR")
 
-    def get(self,request:Request,short_code:str) -> Response:
+    def get(self, request: Request, short_code: str) -> Response:
 
         url = self.service.get_by_short_code(short_code)
-
-        if url is None:
-            raise URLNotFoundException()
 
         AnalyticsService.record_click(
             url_id=url["id"],
@@ -253,23 +264,19 @@ class RedirectAPIView(View):
             referrer=request.META.get("HTTP_REFERER"),
         )
 
-        return redirect(url["long_url"],permanent=False,)
+        return redirect(
+            url["long_url"],
+            permanent=False,
+        )
+
 
 @extend_schema(
     summary="Generate URL QR code",
-    description=(
-        "Generate a PNG QR code containing the short URL."
-    ),
+    description=("Generate a PNG QR code containing the short URL."),
     responses={
-        200: OpenApiResponse(
-            description="PNG QR code"
-        ),
-        404: OpenApiResponse(
-            description="URL not found"
-        ),
-        429: OpenApiResponse(
-            description="Rate limit exceeded"
-        ),
+        200: OpenApiResponse(description="PNG QR code"),
+        404: OpenApiResponse(description="URL not found"),
+        429: OpenApiResponse(description="Rate limit exceeded"),
     },
     tags=["URL Management"],
 )
@@ -283,12 +290,9 @@ class URLQRCodeAPIView(APIView):
 
     service = URLService()
 
-    def get(self,request:Request,url_id:str) -> Response:
+    def get(self, request: Request, url_id: str) -> Response:
 
-        url = self.service.get_users_url(
-            user=request.user,
-            url_id=url_id
-        )
+        url = self.service.get_users_url(user=request.user, url_id=url_id)
         if url is None:
             raise URLNotFoundException()
 
@@ -301,5 +305,3 @@ class URLQRCodeAPIView(APIView):
             content_type="image/png",
             filename=f"{url.short_code}.png",
         )
-
-        

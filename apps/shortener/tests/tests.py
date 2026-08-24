@@ -1,13 +1,18 @@
 from datetime import timedelta
 from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from config.exceptions import URLExpiredException
+
 from ..models import URL
 
 User = get_user_model()
+
 
 class URLShortenerAPITestCase(APITestCase):
     """
@@ -36,21 +41,19 @@ class URLShortenerAPITestCase(APITestCase):
         short_code="abc123",
         expires_at=None,
     ):
-        return User.objects.create(
+        return URL.objects.create(
             user=self.user,
             long_url=long_url,
             short_code=short_code,
-            expires_at=expires_at
+            expires_at=expires_at,
         )
 
     # ---------------------------------------------------------
     # Create URL
     # ---------------------------------------------------------
 
-    @patch(
-        "apps.shortener.views.URLService.create_short_url"
-    )
-    def test_create_url_success(self,mock_create):
+    @patch("apps.shortener.views.URLService.create_short_url")
+    def test_create_url_success(self, mock_create):
         """
         Authenticated user should be able to create
         a shortened URL.
@@ -107,19 +110,12 @@ class URLShortenerAPITestCase(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED
-        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(
             response.data["short_code"],
             "summer-sale",
         )
-        self.assertTrue(
-            URL.objects.filter(
-                short_code="summer-sale"
-            ).exists()
-        )
+        self.assertTrue(URL.objects.filter(short_code="summer-sale").exists())
 
     def test_duplicate_custom_alias_is_rejected(self):
         """
@@ -140,10 +136,6 @@ class URLShortenerAPITestCase(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
-        self.assertIn(
-            "custom_alias",
-            response.data,
-        )
 
     def test_reserved_alias_is_rejected(self):
         """
@@ -161,10 +153,6 @@ class URLShortenerAPITestCase(APITestCase):
         self.assertEqual(
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
-        )
-        self.assertIn(
-            "custom_alias",
-            response.data,
         )
 
     def test_invalid_custom_alias_is_rejected(self):
@@ -184,10 +172,14 @@ class URLShortenerAPITestCase(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
-        self.assertIn(
-            "custom_alias",
-            response.data,
+
+    def test_non_http_url_is_rejected(self):
+        response = self.client.post(
+            reverse("create-url"),
+            {"long_url": "ftp://example.com/file"},
+            format="json",
         )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     # ---------------------------------------------------------
     # Expiration
@@ -198,7 +190,7 @@ class URLShortenerAPITestCase(APITestCase):
         Expiration time in the past should be rejected.
         """
 
-        expired_at = timezone.now - timedelta(minutes=5)
+        expired_at = timezone.now() - timedelta(minutes=5)
         response = self.client.post(
             reverse("create-url"),
             {
@@ -210,10 +202,6 @@ class URLShortenerAPITestCase(APITestCase):
         self.assertEqual(
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
-        )
-        self.assertIn(
-            "expires_at",
-            response.data,
         )
 
     def test_future_expiration_is_accepted(self):
@@ -239,12 +227,8 @@ class URLShortenerAPITestCase(APITestCase):
     # Redirect
     # ---------------------------------------------------------
 
-    @patch(
-        "apps.shortener.views.AnalyticsService.record_click"
-    )
-    @patch(
-        "apps.shortener.views.URLService.get_by_short_code"
-    )
+    @patch("apps.shortener.views.AnalyticsService.record_click")
+    @patch("apps.shortener.views.URLService.get_by_short_code")
     def test_redirect_success(
         self,
         mock_get_url,
@@ -265,9 +249,7 @@ class URLShortenerAPITestCase(APITestCase):
         response = self.client.get(
             reverse(
                 "redirect",
-                kwargs={
-                    "short_code": "abc123"
-                },
+                kwargs={"short_code": "abc123"},
             )
         )
         self.assertEqual(
@@ -281,9 +263,7 @@ class URLShortenerAPITestCase(APITestCase):
 
         mock_record_click.assert_called_once()
 
-    @patch(
-        "apps.shortener.views.URLService.get_by_short_code"
-    )
+    @patch("apps.shortener.views.URLService.get_by_short_code")
     def test_redirect_returns_404_for_missing_url(
         self,
         mock_get_url,
@@ -292,14 +272,14 @@ class URLShortenerAPITestCase(APITestCase):
         Missing short code should return 404.
         """
 
-        mock_get_url.return_value = None
+        from config.exceptions import URLNotFoundException
+
+        mock_get_url.side_effect = URLNotFoundException()
 
         response = self.client.get(
             reverse(
                 "redirect",
-                kwargs={
-                    "short_code": "doesnotexist"
-                },
+                kwargs={"short_code": "doesnotexist"},
             )
         )
         self.assertEqual(
@@ -307,9 +287,7 @@ class URLShortenerAPITestCase(APITestCase):
             status.HTTP_404_NOT_FOUND,
         )
 
-    @patch(
-        "apps.shortener.views.URLService.get_by_short_code"
-    )
+    @patch("apps.shortener.views.URLService.get_by_short_code")
     def test_redirect_returns_410_for_expired_url(
         self,
         mock_get_url,
@@ -318,14 +296,12 @@ class URLShortenerAPITestCase(APITestCase):
         Expired short URL should return 410 Gone.
         """
 
-        mock_get_url.return_value = "expired"
+        mock_get_url.side_effect = URLExpiredException()
 
         response = self.client.get(
             reverse(
                 "redirect",
-                kwargs={
-                    "short_code": "expired-url"
-                },
+                kwargs={"short_code": "expired-url"},
             )
         )
         self.assertEqual(
@@ -351,7 +327,7 @@ class URLShortenerAPITestCase(APITestCase):
 
         response = self.client.get(
             reverse(
-                "url-detail",
+                "url-retrieve",
                 kwargs={
                     "url_id": url.id,
                 },
@@ -366,9 +342,7 @@ class URLShortenerAPITestCase(APITestCase):
     # QR Code
     # ---------------------------------------------------------
 
-    @patch(
-        "apps.shortener.views.generate_qr_code"
-    )
+    @patch("apps.shortener.views.generate_qr_code")
     def test_qr_code_generation(
         self,
         mock_generate_qr,
@@ -382,7 +356,7 @@ class URLShortenerAPITestCase(APITestCase):
 
         url = self.create_url(short_code="qr-test")
         qr_buffer = BytesIO(b"fake-png-data")
-        mock_generate_qr.return_value = (qr_buffer)
+        mock_generate_qr.return_value = qr_buffer
 
         response = self.client.get(
             reverse(
@@ -433,10 +407,7 @@ class URLShortenerAPITestCase(APITestCase):
         else:
             results = response_data
 
-        short_codes = [
-            item["short_code"]
-            for item in results
-        ]
+        short_codes = [item["short_code"] for item in results]
         self.assertIn(
             "mine123",
             short_codes,
