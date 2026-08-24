@@ -68,7 +68,9 @@ services:
       - .env
 
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.base
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DB_ENGINE: django.db.backends.postgresql
+      USE_X_FORWARDED_FOR: "true"
 
     volumes:
       - static_volume:/app/staticfiles
@@ -129,7 +131,9 @@ services:
       - .env
 
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.base
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DB_ENGINE: django.db.backends.postgresql
+      USE_X_FORWARDED_FOR: "true"
 
     depends_on:
       postgres:
@@ -152,7 +156,9 @@ services:
       - .env
 
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.base
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DB_ENGINE: django.db.backends.postgresql
+      USE_X_FORWARDED_FOR: "true"
 
     depends_on:
       postgres:

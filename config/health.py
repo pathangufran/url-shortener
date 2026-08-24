@@ -1,9 +1,12 @@
 import logging
+
 from django.db import connection
 from django.http import JsonResponse
+
 from apps.shortener.utils.redis_client import RedisCache
 
 logger = logging.getLogger(__name__)
+
 
 def health_check(request):
     """
@@ -18,6 +21,7 @@ def health_check(request):
         },
         status=200,
     )
+
 
 def readiness_check(request):
     """
@@ -43,9 +47,7 @@ def readiness_check(request):
         checks["database"] = True
 
     except Exception:
-        logger.exception(
-            "Database readiness check failed."
-        )
+        logger.exception("Database readiness check failed.")
 
     # ------------------------------------------------------
     # Redis
@@ -57,9 +59,7 @@ def readiness_check(request):
         checks["redis"] = True
 
     except Exception:
-        logger.exception(
-            "Redis readiness check failed."
-        )
+        logger.exception("Redis readiness check failed.")
 
     # ------------------------------------------------------
     # Overall status
@@ -68,11 +68,7 @@ def readiness_check(request):
     is_ready = all(checks.values())
 
     response_data = {
-        "status": (
-            "ready"
-            if is_ready
-            else "not_ready"
-        ),
+        "status": ("ready" if is_ready else "not_ready"),
         "checks": checks,
     }
 

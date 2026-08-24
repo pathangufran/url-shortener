@@ -1,13 +1,12 @@
 from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 
-class HealthCheckTests(TestCase):
 
+class HealthCheckTests(TestCase):
     def test_health_check(self):
-        response = self.client.get(
-            reverse("health")
-        )
+        response = self.client.get(reverse("health"))
 
         self.assertEqual(response.status_code, 200)
 
@@ -25,9 +24,7 @@ class HealthCheckTests(TestCase):
     ):
         mock_redis_cache.return_value.client.ping.return_value = True
 
-        response = self.client.get(
-            reverse("readiness")
-        )
+        response = self.client.get(reverse("readiness"))
 
         self.assertEqual(response.status_code, 200)
 
@@ -38,10 +35,6 @@ class HealthCheckTests(TestCase):
             "ready",
         )
 
-        self.assertTrue(
-            data["checks"]["database"]
-        )
+        self.assertTrue(data["checks"]["database"])
 
-        self.assertTrue(
-            data["checks"]["redis"]
-        )
+        self.assertTrue(data["checks"]["redis"])
