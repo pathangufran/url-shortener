@@ -1,13 +1,10 @@
 import ipaddress
 import logging
-
 from celery import shared_task
 from user_agents import parse
-
 from .models import ClickEvent
 
 logger = logging.getLogger(__name__)
-
 
 @shared_task(
     bind=True,

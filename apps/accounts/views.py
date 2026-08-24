@@ -3,15 +3,14 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.shortener.utils.throttling import AuthenticationRateThrottle
-
-from .serializers.login import LoginSerializer
-from .serializers.register import RegisterSerializer
-from .serializers.response import UserResponseSerializer
-from .serializers.token import TokenResponseSerializer
 from .services import AuthService
-
+from apps.shortener.utils.throttling import AuthenticationRateThrottle
+from .serializers import (
+    LoginSerializer,
+    RegisterSerializer,
+    UserResponseSerializer,
+    TokenResponseSerializer
+)
 
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
@@ -30,7 +29,6 @@ class RegisterAPIView(APIView):
             response.data,
             status=status.HTTP_201_CREATED,
         )
-
 
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
@@ -56,7 +54,6 @@ class LoginAPIView(APIView):
             response.data,
             status=status.HTTP_200_OK,
         )
-
 
 class ProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]

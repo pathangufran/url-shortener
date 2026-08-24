@@ -1,11 +1,8 @@
 import re
 from urllib.parse import urlsplit
-
 from django.utils import timezone
 from rest_framework import serializers
-
 from .models import URL
-
 
 class CreateURLSerializer(serializers.ModelSerializer):
     """
@@ -75,7 +72,6 @@ class CreateURLSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This custom alias is already in use.")
         return value
 
-
 class UpdateURLSerializer(serializers.Serializer):
     long_url = serializers.URLField(required=False)
     expires_at = serializers.DateTimeField(
@@ -106,7 +102,6 @@ class UpdateURLSerializer(serializers.Serializer):
         if value is not None and value <= timezone.now():
             raise serializers.ValidationError("Expiration time must be in the future.")
         return value
-
 
 class URLResponseSerializer(serializers.ModelSerializer):
     short_url = serializers.SerializerMethodField()

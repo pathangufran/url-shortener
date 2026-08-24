@@ -1,7 +1,5 @@
-from django.contrib import admin
-
 from .models import URL
-
+from django.contrib import admin
 
 @admin.register(URL)
 class URLAdmin(admin.ModelAdmin):

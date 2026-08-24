@@ -1,8 +1,6 @@
 import io
-
 import qrcode
 from qrcode.constants import ERROR_CORRECT_M
-
 
 def generate_qr_code(data: str) -> io.BytesIO:
     """

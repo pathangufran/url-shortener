@@ -1,10 +1,7 @@
-from django.contrib.auth.models import AbstractUser
 from django.db import models
-
-from apps.common.models import TimeStampedModel
-
+from django.contrib.auth.models import AbstractUser
 from .managers import UserManager
-
+from apps.common.models import TimeStampedModel
 
 class User(TimeStampedModel, AbstractUser):
     username = None

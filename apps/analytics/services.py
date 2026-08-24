@@ -1,22 +1,16 @@
 import logging
 from datetime import datetime, time, timedelta
-
 from django.conf import settings
 from django.db.models import Count
 from django.utils import timezone
-
 from apps.shortener.models import URL
-from config.exceptions import (
-    AnalyticsNotFoundException,
-)
-
+from config.exceptions import (AnalyticsNotFoundException,)
 from .models import ClickEvent
 from .tasks import record_click_event
 
 User = settings.AUTH_USER_MODEL
 
 logger = logging.getLogger(__name__)
-
 
 class AnalyticsService:
     """

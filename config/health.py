@@ -1,12 +1,9 @@
 import logging
-
 from django.db import connection
 from django.http import JsonResponse
-
 from apps.shortener.utils.redis_client import RedisCache
 
 logger = logging.getLogger(__name__)
-
 
 def health_check(request):
     """
@@ -21,7 +18,6 @@ def health_check(request):
         },
         status=200,
     )
-
 
 def readiness_check(request):
     """

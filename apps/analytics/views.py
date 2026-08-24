@@ -1,30 +1,26 @@
 import logging
-
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiResponse,
-    OpenApiTypes,
-    extend_schema,
-)
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from apps.shortener.utils.throttling import AnalyticsRateThrottle
 from config.exceptions import URLNotFoundException
-
+from .services import AnalyticsService
 from .serializers import (
     AnalyticsFilterSerializer,
     ClickEventFilterSerializer,
     ClickEventSerializer,
     URLAnalyticsResponseSerializer,
 )
-from .services import AnalyticsService
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiTypes,
+    extend_schema,
+)
 
 logger = logging.getLogger(__name__)
-
 
 @extend_schema(
     summary="Get URL analytics",
@@ -65,10 +61,6 @@ class URLAnalyticsAPIView(APIView):
             url_id=url_id,
             **filter_serializer.validated_data,
         )
-
-        if analytics is None:
-            raise URLNotFoundException()
-
         serializer = URLAnalyticsResponseSerializer(analytics)
         logger.info(
             "URL analytics API request completed.",
@@ -84,7 +76,6 @@ class URLAnalyticsAPIView(APIView):
             serializer.data,
             status=status.HTTP_200_OK,
         )
-
 
 @extend_schema(
     summary="List URL click events",
@@ -175,9 +166,6 @@ class URLClickEventsAPIView(APIView):
             ),
             **filter_serializer.validated_data,
         )
-        if queryset is None:
-            raise URLNotFoundException()
-
         page = self._paginate_queryset(
             queryset,
             request,
@@ -186,7 +174,6 @@ class URLClickEventsAPIView(APIView):
             page["results"],
             many=True,
         )
-
         response_data = {
             "count": page["count"],
             "next": page["next"],

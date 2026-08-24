@@ -1,11 +1,9 @@
 import json
-import logging
-
 import redis
+import logging
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-
 
 class RedisCache:
     """

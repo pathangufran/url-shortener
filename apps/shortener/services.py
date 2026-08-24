@@ -3,18 +3,15 @@ import secrets
 import string
 from datetime import datetime
 from typing import Protocol
-
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-
 from config.exceptions import (
     DuplicateAliasException,
     ShortCodeGenerationException,
     URLExpiredException,
     URLNotFoundException,
 )
-
 from .models import URL
 from .utils.redis_client import RedisCache
 
@@ -26,14 +23,12 @@ BASE62_ALPHABET = string.ascii_letters + string.digits
 
 SHORT_CODE_LENGTH = settings.SHORT_CODE_LENGTH
 
-
 class ShortCodeGenerator(Protocol):
     """
     Contract for short-code generators.
     """
 
     def generate(self) -> str: ...
-
 
 class Base62ShortCodeGenerator:
     """
@@ -322,12 +317,7 @@ class URLService:
         for field, value in validated_data.items():
             setattr(url, field, value)
 
-        url.save(
-            update_fields=[
-                *validated_data.keys(),
-                "updated_at",
-            ]
-        )
+        url.save(update_fields=[*validated_data.keys(),"updated_at",])
 
         self.cache.delete_url(url.short_code)
 

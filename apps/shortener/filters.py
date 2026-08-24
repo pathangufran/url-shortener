@@ -1,7 +1,5 @@
-import django_filters
-
 from .models import URL
-
+import django_filters
 
 class URLFilter(django_filters.FilterSet):
     class Meta:

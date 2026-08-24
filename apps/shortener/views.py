@@ -2,28 +2,22 @@ from django.conf import settings
 from django.http import FileResponse
 from django.shortcuts import redirect
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import (
-    OpenApiResponse,
-    extend_schema,
-)
 from rest_framework import filters, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from apps.analytics.services import AnalyticsService
-from config.exceptions import (
-    URLNotFoundException,
-)
-
 from .filters import URLFilter
 from .pagination import URLPagination
 from .serializers import CreateURLSerializer, UpdateURLSerializer, URLResponseSerializer
 from .services import URLService
 from .utils.qr import generate_qr_code
 from .utils.throttling import RedirectRateThrottle, URLCreationRateThrottle
-
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+)
 
 @extend_schema(
     summary="Create a short URL",
@@ -60,8 +54,8 @@ class CreateURLAPIView(APIView):
                 "request": request,
             },
         )
-        return Response(response.data, status=status.HTTP_201_CREATED)
 
+        return Response(response.data, status=status.HTTP_201_CREATED)
 
 class URLListAPIView(APIView):
     """
@@ -125,7 +119,6 @@ class URLListAPIView(APIView):
             queryset,
             request,
         )
-
         serializer = URLResponseSerializer(
             page,
             many=True,
@@ -135,7 +128,6 @@ class URLListAPIView(APIView):
         )
 
         return paginator.get_paginated_response(serializer.data)
-
 
 class URLRetrieveAPIView(APIView):
     """
@@ -149,9 +141,6 @@ class URLRetrieveAPIView(APIView):
     def get(self, request: Request, url_id: str) -> Response:
 
         url = self.service.get_users_url(user=request.user, url_id=url_id)
-        if url is None:
-            raise URLNotFoundException()
-
         serializer = URLResponseSerializer(
             url,
             context={
@@ -163,7 +152,6 @@ class URLRetrieveAPIView(APIView):
             serializer.data,
             status=status.HTTP_200_OK,
         )
-
 
 class URLUpdateAPIView(APIView):
     """
@@ -181,17 +169,16 @@ class URLUpdateAPIView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         url = self.service.update_url(
-            user=request.user, url_id=url_id, validated_data=serializer.validated_data
+            user=request.user, url_id=url_id, 
+            validated_data=serializer.validated_data
         )
-        if url is None:
-            raise URLNotFoundException()
-
         response_serializer = URLResponseSerializer(
             url,
             context={
                 "request": request,
             },
         )
+        
         return Response(
             response_serializer.data,
             status=status.HTTP_200_OK,
@@ -205,12 +192,9 @@ class URLDeleteAPIView(APIView):
 
     def delete(self, request: Request, url_id: str) -> Response:
 
-        url = self.service.delete_url(user=request.user, url_id=url_id)
-        if url is None:
-            raise URLNotFoundException()
+        self.service.delete_url(user=request.user, url_id=url_id)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 @extend_schema(
     summary="Redirect short URL",
@@ -256,7 +240,6 @@ class RedirectAPIView(APIView):
     def get(self, request: Request, short_code: str) -> Response:
 
         url = self.service.get_by_short_code(short_code)
-
         AnalyticsService.record_click(
             url_id=url["id"],
             ip_address=self._get_client_ip(request),
@@ -293,8 +276,6 @@ class URLQRCodeAPIView(APIView):
     def get(self, request: Request, url_id: str) -> Response:
 
         url = self.service.get_users_url(user=request.user, url_id=url_id)
-        if url is None:
-            raise URLNotFoundException()
 
         short_url = request.build_absolute_uri(f"/{url.short_code}/")
 

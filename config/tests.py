@@ -1,8 +1,6 @@
 from unittest.mock import patch
-
 from django.test import TestCase
 from django.urls import reverse
-
 
 class HealthCheckTests(TestCase):
     def test_health_check(self):

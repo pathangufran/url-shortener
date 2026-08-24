@@ -1,9 +1,7 @@
 import logging
-
 from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
-
 from config.exceptions import (
     AccountAlreadyExistsException,
     AccountIsNotActiveException,
@@ -13,7 +11,6 @@ from config.exceptions import (
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
-
 
 class AuthService:
     @transaction.atomic

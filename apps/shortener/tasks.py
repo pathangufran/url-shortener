@@ -1,12 +1,9 @@
 import logging
-
 from celery import shared_task
 from django.utils import timezone
-
 from .models import URL
 
 logger = logging.getLogger(__name__)
-
 
 @shared_task
 def deactivate_expired_urls() -> int:

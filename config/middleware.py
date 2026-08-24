@@ -4,7 +4,6 @@ import uuid
 
 logger = logging.getLogger("django.request")
 
-
 class RequestLoggingMiddleware:
     """
     Logs incoming HTTP requests with request ID,

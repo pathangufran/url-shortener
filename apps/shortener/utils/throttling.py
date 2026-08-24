@@ -1,10 +1,9 @@
-from django.conf import settings
+from rest_framework.views import View
 from rest_framework.request import Request
 from rest_framework.throttling import BaseThrottle
-from rest_framework.views import View
+from django.conf import settings
 
 from .rate_limiter import RateLimiter
-
 
 class RedisRateThrottle(BaseThrottle):
     """

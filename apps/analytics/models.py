@@ -1,9 +1,6 @@
 from uuid import uuid4
-
 from django.db import models
-
 from apps.shortener.models import URL
-
 
 class ClickEvent(models.Model):
     """

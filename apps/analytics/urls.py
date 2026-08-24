@@ -1,6 +1,8 @@
 from django.urls import path
-
-from .views import URLAnalyticsAPIView, URLClickEventsAPIView
+from .views import (
+    URLAnalyticsAPIView, 
+    URLClickEventsAPIView
+)
 
 app_name = "analytics"
 
